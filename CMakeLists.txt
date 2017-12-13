@@ -1,0 +1,30 @@
+
+ADD_EXECUTABLE(ARAMIS ARAMIS/aramis.cpp)
+TARGET_LINK_LIBRARIES(ARAMIS Mechanics Math Base)
+IF(ENABLE_VISUALIZE)
+    TARGET_LINK_LIBRARIES(ARAMIS Visualize)
+ENDIF(ENABLE_VISUALIZE)
+
+ADD_EXECUTABLE(1DCreepShrinkageTest CreepShrinkage/1DCreepShrinkageTest.cpp)
+TARGET_LINK_LIBRARIES(1DCreepShrinkageTest Mechanics Math Base)
+IF(ENABLE_VISUALIZE)
+    TARGET_LINK_LIBRARIES(1DCreepShrinkageTest Visualize)
+ENDIF(ENABLE_VISUALIZE)
+
+ADD_EXECUTABLE(2DCreepShrinkageTest CreepShrinkage/2DCreepShrinkageTest.cpp)
+TARGET_LINK_LIBRARIES(2DCreepShrinkageTest Mechanics Math Base)
+IF(ENABLE_VISUALIZE)
+    TARGET_LINK_LIBRARIES(2DCreepShrinkageTest Visualize)
+ENDIF(ENABLE_VISUALIZE)
+
+ADD_EXECUTABLE(2DCreepShrinkageTest_homogeneous CreepShrinkage/2DCreepShrinkageTest_homogeneous.cpp)
+TARGET_LINK_LIBRARIES(2DCreepShrinkageTest_homogeneous Mechanics Math Base)
+IF(ENABLE_VISUALIZE)
+    TARGET_LINK_LIBRARIES(2DCreepShrinkageTest_homogeneous Visualize)
+ENDIF(ENABLE_VISUALIZE)
+
+ADD_EXECUTABLE(2DDamageCreepShrinkage CreepShrinkage/2DDamageCreepShrinkage.cpp)
+TARGET_LINK_LIBRARIES(2DDamageCreepShrinkage Mechanics Math Base)
+IF(ENABLE_VISUALIZE)
+    TARGET_LINK_LIBRARIES(2DDamageCreepShrinkage Visualize)
+ENDIF(ENABLE_VISUALIZE)
