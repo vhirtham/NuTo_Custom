@@ -217,7 +217,7 @@ void RunCreepTestl(double YoungsModulus, Eigen::VectorXd kelvinChainStiffness,
     std::vector<int> elementIDsMatrixVector;
     S.ElementGroupGetMembers(elementGroupMatrixID, elementIDsMatrixVector);
 
-    for (int i = 0; i < elementIDsMatrixVector.size(); i++)
+    for (unsigned int i = 0; i < elementIDsMatrixVector.size(); i++)
     {
         for (int theIP = 0; theIP < S.ElementGetElementPtr(elementIDsMatrixVector[i])->GetNumIntegrationPoints();
              theIP++)
