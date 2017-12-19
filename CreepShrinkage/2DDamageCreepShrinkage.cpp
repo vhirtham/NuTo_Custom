@@ -1,6 +1,8 @@
 #include "mechanics/DirectionEnum.h"
 #include "mechanics/constitutive/ConstitutiveEnum.h"
 #include "mechanics/constitutive/laws/AdditiveOutput.h"
+#include "mechanics/constitutive/laws/AdditiveInputExplicit.h"
+#include "mechanics/constitutive/laws/ShrinkageCapillaryStrainBased.h"
 #include "mechanics/constitutive/damageLaws/DamageLawExponential.h"
 #include "mechanics/constitutive/laws/MoistureTransport.h"
 #include "mechanics/constraints/Constraints.h"
@@ -26,18 +28,21 @@ using namespace NuTo::Constraint;
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 // time
-constexpr double simulationTime = 10.;
-constexpr int numTimesteps = 40;
+constexpr double simulationTime = 240.;
+constexpr int numTimesteps = 480;
+constexpr int numWriteSteps = 60;
 
 // mechanics
-constexpr double extLoad = 15.;
+constexpr double youngsModulus = 30000;
+constexpr double poissonRatio = 0.2;
 constexpr double tensileStrength = 4.;
+
 
 // iteration
 constexpr double tolDisp = 1e-6;
 constexpr double tolNLES = 1e-6;
-constexpr double tolWF = 1e-12;
-constexpr double tolRH = 1e-12;
+constexpr double tolWF = 1e-10;
+constexpr double tolRH = 1e-10;
 constexpr int maxIter = 10;
 
 
@@ -45,7 +50,7 @@ constexpr int maxIter = 10;
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 //! @brief Simulation with damage, creep and shrinkage
-void DCS(double youngsModulus, double poissonRatio, std::string simulationName)
+void DCS(std::string simulationName)
 {
     Structure S(2);
     NewmarkDirect NM(&S);
@@ -57,7 +62,7 @@ void DCS(double youngsModulus, double poissonRatio, std::string simulationName)
     // Mesh
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    auto meshData = S.ImportFromGmsh("Mesh1.msh");
+    auto meshData = S.ImportFromGmsh("Meso.msh");
 
     int elementGroupMatrixID = meshData[0].first;
     int interpolationTypeMatrixID = meshData[0].second;
@@ -87,16 +92,20 @@ void DCS(double youngsModulus, double poissonRatio, std::string simulationName)
     S.ConstitutiveLawSetDamageLaw(
             lawGD_Id, DamageLawExponential::Create(tensileStrength / youngsModulus, tensileStrength / 0.021));
 
+    //    int lawGD_Id = S.ConstitutiveLawCreate(eConstitutiveType::LINEAR_ELASTIC_ENGINEERING_STRESS);
+    //    S.ConstitutiveLawSetParameterDouble(lawGD_Id, eConstitutiveParameter::YOUNGS_MODULUS, youngsModulus);
+    //    S.ConstitutiveLawSetParameterDouble(lawGD_Id, eConstitutiveParameter::POISSONS_RATIO, poissonRatio);
+
 
     // matrix - moisture transport
     int lawMT_Id = S.ConstitutiveLawCreate(eConstitutiveType::MOISTURE_TRANSPORT);
     S.ConstitutiveLawSetParameterBool(lawMT_Id, eConstitutiveParameter::ENABLE_MODIFIED_TANGENTIAL_STIFFNESS, false);
     S.ConstitutiveLawSetParameterBool(lawMT_Id, eConstitutiveParameter::ENABLE_MODIFIED_TANGENTIAL_STIFFNESS, false);
-    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::BOUNDARY_DIFFUSION_COEFFICIENT_RH, 1.0e-9);
-    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::BOUNDARY_DIFFUSION_COEFFICIENT_WV, 1.0e-5);
+    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::BOUNDARY_DIFFUSION_COEFFICIENT_RH, 1.0e-3);
+    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::BOUNDARY_DIFFUSION_COEFFICIENT_WV, 1.0e1);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DENSITY_WATER, 999.97);
-    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_COEFFICIENT_RH, 3.9e-12);
-    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_COEFFICIENT_WV, 1.17e-7);
+    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_COEFFICIENT_RH, 3.9e-6);
+    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_COEFFICIENT_WV, 1.17e-1);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_EXPONENT_RH, 1.0);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_EXPONENT_WV, 1.0);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::GRADIENT_CORRECTION_ADSORPTION_DESORPTION,
@@ -114,12 +123,24 @@ void DCS(double youngsModulus, double poissonRatio, std::string simulationName)
             (Eigen::Vector4d() << 0., 0.26719233184420238, -0.41030868184510738, 0.32511635000090505).finished());
 
 
+    // Strain based shrinkage
+    int lawShr_Id = S.ConstitutiveLawCreate(eConstitutiveType::SHRINKAGE_CAPILLARY_STRAIN_BASED);
+    S.ConstitutiveLawSetParameterDouble(lawShr_Id, eConstitutiveParameter::MACROSCOPIC_BULK_MODULUS,
+                                        youngsModulus * 4. / 3. * 10.e6 / 3.);
+    S.ConstitutiveLawSetParameterDouble(lawShr_Id, eConstitutiveParameter::SOLID_PHASE_BULK_MODULUS,
+                                        youngsModulus * 2. / 3. * 10.e6 / 3.);
+    S.ConstitutiveLawSetParameterDouble(lawShr_Id, eConstitutiveParameter::TEMPERATURE, 293);
+
+
     // matrix
-
     int lawAO_Id = S.ConstitutiveLawCreate(Constitutive::eConstitutiveType::ADDITIVE_OUTPUT);
+    int lawAIE_Id = S.ConstitutiveLawCreate(Constitutive::eConstitutiveType::ADDITIVE_INPUT_EXPLICIT);
     auto lawAO_Ptr = static_cast<NuTo::AdditiveOutput*>(S.ConstitutiveLawGetConstitutiveLawPtr(lawAO_Id));
+    auto lawAIE_Ptr = static_cast<NuTo::AdditiveOutput*>(S.ConstitutiveLawGetConstitutiveLawPtr(lawAIE_Id));
 
-    lawAO_Ptr->AddConstitutiveLaw(*S.ConstitutiveLawGetConstitutiveLawPtr(lawGD_Id));
+    lawAIE_Ptr->AddConstitutiveLaw(*S.ConstitutiveLawGetConstitutiveLawPtr(lawGD_Id));
+    lawAIE_Ptr->AddConstitutiveLaw(*S.ConstitutiveLawGetConstitutiveLawPtr(lawShr_Id), eInput::ENGINEERING_STRAIN);
+    lawAO_Ptr->AddConstitutiveLaw(*S.ConstitutiveLawGetConstitutiveLawPtr(lawAIE_Id));
     lawAO_Ptr->AddConstitutiveLaw(*S.ConstitutiveLawGetConstitutiveLawPtr(lawMT_Id));
 
 
@@ -128,7 +149,7 @@ void DCS(double youngsModulus, double poissonRatio, std::string simulationName)
 
     // aggregates - mechanics
     int lawLE_Id = S.ConstitutiveLawCreate(eConstitutiveType::LINEAR_ELASTIC_ENGINEERING_STRESS);
-    S.ConstitutiveLawSetParameterDouble(lawLE_Id, eConstitutiveParameter::YOUNGS_MODULUS, youngsModulus / 200.);
+    S.ConstitutiveLawSetParameterDouble(lawLE_Id, eConstitutiveParameter::YOUNGS_MODULUS, youngsModulus / 200. * 400);
     S.ConstitutiveLawSetParameterDouble(lawLE_Id, eConstitutiveParameter::POISSONS_RATIO, poissonRatio);
     S.ElementGroupSetConstitutiveLaw(elementGroupAggregatesID, lawLE_Id);
 
@@ -217,9 +238,9 @@ void DCS(double youngsModulus, double poissonRatio, std::string simulationName)
     assert(leftNodesGroup.GetNumMembers() > 0);
 
     S.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(leftNodesGroup, {eDirection::X}));
-    S.Constraints().Add(Node::eDof::DISPLACEMENTS,
-                        Constraint::Component(rightNodesGroup, {eDirection::X},
-                                              [](double t) { return t / simulationTime * -0.002; }));
+    //    S.Constraints().Add(Node::eDof::DISPLACEMENTS,
+    //                        Constraint::Component(rightNodesGroup, {eDirection::X},
+    //                                              [](double t) { return t / simulationTime * -0.002 * -0.00; }));
     auto& nodeOrigin = S.NodeGetAtCoordinate(Eigen::VectorXd::Zero(2));
     S.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(nodeOrigin, {eDirection::Y}));
 
@@ -227,33 +248,33 @@ void DCS(double youngsModulus, double poissonRatio, std::string simulationName)
     // Boundary Elements
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    //    int upperSideNodesGroup = S.GroupCreateNodeGroup();
-    //    int upperSideElementsGroup = S.GroupCreateElementGroup();
+    int upperSideNodesGroup = S.GroupCreateNodeGroup();
+    int upperSideElementsGroup = S.GroupCreateElementGroup();
 
-    //    S.GroupAddNodeCoordinateRange(upperSideNodesGroup, eDirection::Y, 0. - 1.e-6, 0. + 1.e-6);
-    //    S.GroupAddElementsFromNodes(upperSideElementsGroup, upperSideNodesGroup, false);
+    S.GroupAddNodeCoordinateRange(upperSideNodesGroup, eDirection::Y, 0. - 1.e-6, 0. + 1.e-6);
+    S.GroupAddElementsFromNodes(upperSideElementsGroup, upperSideNodesGroup, false);
 
-    //    auto boundaryControlNodePtr = S.NodeGetNodePtr(S.NodeCreateDOFs({Node::eDof::RELATIVEHUMIDITY}));
+    auto boundaryControlNodePtr = S.NodeGetNodePtr(S.NodeCreateDOFs({Node::eDof::RELATIVEHUMIDITY}));
 
-    //    int boundaryElementsGroup =
-    //            S.BoundaryElementsCreate(upperSideElementsGroup, upperSideNodesGroup, boundaryControlNodePtr);
+    int boundaryElementsGroup =
+            S.BoundaryElementsCreate(upperSideElementsGroup, upperSideNodesGroup, boundaryControlNodePtr);
 
-    //    S.Constraints().Add(NuTo::Node::eDof::RELATIVEHUMIDITY,
-    //                        NuTo::Constraint::Value(*boundaryControlNodePtr, [initialRH](double rTime) -> double {
-    //                            if (rTime == 0.) // || rTime > SIMULATIONTIME / 2.0)
-    //                                return initialRH;
-    //                            return 0.3;
-    //                        }));
+    S.Constraints().Add(NuTo::Node::eDof::RELATIVEHUMIDITY,
+                        NuTo::Constraint::Value(*boundaryControlNodePtr, [initialRH](double rTime) -> double {
+                            if (rTime == 0.) // || rTime > SIMULATIONTIME / 2.0)
+                                return initialRH;
+                            return 0.3;
+                        }));
 
-    //    std::vector<int> boundaryElementIDsVector;
-    //    S.ElementGroupGetMembers(boundaryElementsGroup, boundaryElementIDsVector);
+    std::vector<int> boundaryElementIDsVector;
+    S.ElementGroupGetMembers(boundaryElementsGroup, boundaryElementIDsVector);
 
 
-    //    for (int elementId : boundaryElementIDsVector)
-    //    {
-    //        S.ElementGetElementPtr(elementId)->SetIntegrationType(
-    //                *S.GetPtrIntegrationType(NuTo::eIntegrationType::IntegrationType1D2NGauss2Ip));
-    //    }
+    for (int elementId : boundaryElementIDsVector)
+    {
+        S.ElementGetElementPtr(elementId)->SetIntegrationType(
+                *S.GetPtrIntegrationType(NuTo::eIntegrationType::IntegrationType1D2NGauss2Ip));
+    }
 
 
     // Visualization
@@ -261,11 +282,11 @@ void DCS(double youngsModulus, double poissonRatio, std::string simulationName)
 
     int visualizeGroup = elementGroupMatrixID;
     S.AddVisualizationComponent(visualizeGroup, eVisualizeWhat::DAMAGE);
+    S.AddVisualizationComponent(visualizeGroup, eVisualizeWhat::LOCAL_EQ_STRAIN);
+    S.AddVisualizationComponent(visualizeGroup, eVisualizeWhat::NONLOCAL_EQ_STRAIN);
     S.AddVisualizationComponent(visualizeGroup, eVisualizeWhat::DISPLACEMENTS);
     S.AddVisualizationComponent(visualizeGroup, eVisualizeWhat::ENGINEERING_STRAIN);
-    S.AddVisualizationComponent(visualizeGroup, eVisualizeWhat::LOCAL_EQ_STRAIN);
     S.AddVisualizationComponent(visualizeGroup, eVisualizeWhat::ENGINEERING_STRESS);
-    S.AddVisualizationComponent(visualizeGroup, eVisualizeWhat::NONLOCAL_EQ_STRAIN);
     S.AddVisualizationComponent(visualizeGroup, eVisualizeWhat::PRINCIPAL_ENGINEERING_STRESS);
     S.AddVisualizationComponent(visualizeGroup, eVisualizeWhat::WATER_VOLUME_FRACTION);
     S.AddVisualizationComponent(visualizeGroup, eVisualizeWhat::RELATIVE_HUMIDITY);
@@ -288,13 +309,15 @@ void DCS(double youngsModulus, double poissonRatio, std::string simulationName)
     NM.SetToleranceResidual(Node::eDof::RELATIVEHUMIDITY, tolRH);
     NM.SetToleranceResidual(Node::eDof::WATERVOLUMEFRACTION, tolWF);
 
+    NM.AddCalculationStep({Node::eDof::RELATIVEHUMIDITY, Node::eDof::WATERVOLUMEFRACTION});
+    NM.AddCalculationStep({Node::eDof::DISPLACEMENTS, Node::eDof::NONLOCALEQSTRAIN});
     NM.SetAutomaticTimeStepping(true);
     NM.SetMaxTimeStep(simulationTime / numTimesteps);
     NM.SetMinTimeStep(simulationTime / numTimesteps / 100);
     NM.SetTimeStep(simulationTime / numTimesteps);
     NM.SetPerformLineSearch(false);
     NM.SetMaxNumIterations(maxIter);
-    // NM.PostProcessing().SetMinTimeStepPlot(simulationTime / numTimesteps);
+    NM.PostProcessing().SetMinTimeStepPlot(simulationTime / numWriteSteps);
     NM.PostProcessing().SetResultDirectory(simulationName, true);
     NM.Solve(simulationTime);
 }
@@ -303,6 +326,6 @@ void DCS(double youngsModulus, double poissonRatio, std::string simulationName)
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 int main()
 {
-    DCS(30000., 0.2, "Damage");
+    DCS("Damage");
     return 0;
 }
