@@ -43,14 +43,14 @@ constexpr double poissonRatio = 0.2;
 constexpr double tensileStrength = 4.;
 
 // mesh
-constexpr double cylinderDiameter = 1.;
-constexpr double cylinderHeight = 3.;
+constexpr double cylinderDiameter = 100.;
+constexpr double cylinderHeight = 300.;
 
 // iteration
 constexpr double tolDisp = 1e-6;
 constexpr double tolNLES = 1e-6;
-constexpr double tolWF = 1e-10;
-constexpr double tolRH = 1e-10;
+constexpr double tolWF = 1e-5;
+constexpr double tolRH = 1e-5;
 constexpr int maxIter = 10;
 
 
@@ -69,16 +69,21 @@ void DS(double RH_Air, double finalDisp, double dryingTime, double dryingDelta_t
 
     // Mesh
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    Eigen::Vector3d start{0., 0., 0};
-    Eigen::Vector3d end{1., 1., 1};
-    Eigen::Vector3i subdivisions{6, 6, 18};
-    int elementGroup_Id = -1;
-    int interpolationType_Id = -1;
-    auto meshData = std::tie(elementGroup_Id, interpolationType_Id);
-    meshData = MeshGenerator::Grid(S, start, end, subdivisions, eShapeType::BRICK3D);
+    //    Eigen::Vector3d start{0., 0., 0};
+    //    Eigen::Vector3d end{1., 1., 1};
+    //    Eigen::Vector3i subdivisions{6, 6, 18};
+    //    int elementGroup_Id = -1;
+    //    int interpolationType_Id = -1;
+    //    auto meshData = std::tie(elementGroup_Id, interpolationType_Id);
+    //    meshData = MeshGenerator::Grid(S, start, end, subdivisions, eShapeType::BRICK3D);
 
-    assert(elementGroup_Id > -1);
-    assert(interpolationType_Id > -1);
+    //    assert(elementGroup_Id > -1);
+    //    assert(interpolationType_Id > -1);
+
+    auto meshData = S.ImportFromGmsh("Cylinder.msh");
+
+    int elementGroup_Id = meshData[0].first;
+    int interpolationType_Id = meshData[0].second;
 
     std::vector<int> allNodes_Ids;
     S.NodeGroupGetMembers(S.GroupGetNodesTotal(), allNodes_Ids);
@@ -95,11 +100,11 @@ void DS(double RH_Air, double finalDisp, double dryingTime, double dryingDelta_t
     S.ConstitutiveLawSetParameterDouble(lawGD_Id, eConstitutiveParameter::POISSONS_RATIO, poissonRatio);
 
     S.ConstitutiveLawSetParameterDouble(lawGD_Id, eConstitutiveParameter::DENSITY, 1.0);
-    S.ConstitutiveLawSetParameterDouble(lawGD_Id, eConstitutiveParameter::NONLOCAL_RADIUS, 0.2 * 1e-5);
+    S.ConstitutiveLawSetParameterDouble(lawGD_Id, eConstitutiveParameter::NONLOCAL_RADIUS, 1);
     S.ConstitutiveLawSetParameterDouble(lawGD_Id, eConstitutiveParameter::TENSILE_STRENGTH, tensileStrength);
     S.ConstitutiveLawSetParameterDouble(lawGD_Id, eConstitutiveParameter::COMPRESSIVE_STRENGTH, tensileStrength * 10);
-    S.ConstitutiveLawSetDamageLaw(lawGD_Id,
-                                  DamageLawExponential::Create(tensileStrength / youngsModulus, tensileStrength / 0.1));
+    S.ConstitutiveLawSetDamageLaw(
+            lawGD_Id, DamageLawExponential::Create(tensileStrength / youngsModulus, tensileStrength / 0.01));
 
     // moisture transport
 
@@ -108,10 +113,10 @@ void DS(double RH_Air, double finalDisp, double dryingTime, double dryingDelta_t
     S.ConstitutiveLawSetParameterBool(lawMT_Id, eConstitutiveParameter::ENABLE_MODIFIED_TANGENTIAL_STIFFNESS, false);
     S.ConstitutiveLawSetParameterBool(lawMT_Id, eConstitutiveParameter::ENABLE_MODIFIED_TANGENTIAL_STIFFNESS, false);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::BOUNDARY_DIFFUSION_COEFFICIENT_RH, 1.0e-3);
-    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::BOUNDARY_DIFFUSION_COEFFICIENT_WV, 1.0e1);
+    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::BOUNDARY_DIFFUSION_COEFFICIENT_WV, 1.0e5);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DENSITY_WATER, 999.97);
-    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_COEFFICIENT_RH, 3.9e-6);
-    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_COEFFICIENT_WV, 1.17e-1);
+    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_COEFFICIENT_RH, 3.9e-4);
+    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_COEFFICIENT_WV, 1.17e3);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_EXPONENT_RH, 1.0);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_EXPONENT_WV, 1.0);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::GRADIENT_CORRECTION_ADSORPTION_DESORPTION,
@@ -184,33 +189,12 @@ void DS(double RH_Air, double finalDisp, double dryingTime, double dryingDelta_t
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     auto& bottomNodesGroup = S.GroupGetNodeCoordinateRange(eDirection::Z, 0. - 1e-6, 0. + 1e-6);
-    auto& topNodesGroup = S.GroupGetNodeCoordinateRange(eDirection::Z, 1. - 1e-6, 1. + 1e+6);
+    auto& topNodesGroup = S.GroupGetNodeCoordinateRange(eDirection::Z, 300 - 1e-6, 300 + 1e+6);
     int topElementsGroup_Id = S.GroupCreateElementGroup();
     int bottomElementsGroup_Id = S.GroupCreateElementGroup();
     S.GroupAddElementsFromNodes(topElementsGroup_Id, S.GroupGetId(&topNodesGroup), false);
     S.GroupAddElementsFromNodes(bottomElementsGroup_Id, S.GroupGetId(&bottomNodesGroup), false);
 
-
-    // map unit mesh to cylindrical mesh and warp to avoid biforcation
-    // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    auto cylinderMappingF = MeshGenerator::GetCylinderMapping(cylinderDiameter, cylinderHeight);
-    auto antiBiforkationMapping = [](Eigen::VectorXd oldCoordinates) -> Eigen::VectorXd {
-        oldCoordinates[2] = oldCoordinates[2] +
-                            (((oldCoordinates[0] / cylinderDiameter) * (oldCoordinates[1] / cylinderDiameter) +
-                              (oldCoordinates[1] / cylinderDiameter)) *
-                             ((oldCoordinates[2] / cylinderHeight) + 0.5)) *
-                                    0.002;
-        return oldCoordinates;
-    };
-
-    for (auto& node_Id : allNodes_Ids)
-    {
-        auto node_Ptr = S.NodeGetNodePtr(node_Id);
-        Eigen::VectorXd oldCoordinates = node_Ptr->Get(Node::eDof::COORDINATES);
-        Eigen::VectorXd newCoordinates = cylinderMappingF(oldCoordinates);
-        node_Ptr->Set(Node::eDof::COORDINATES, newCoordinates);
-    }
 
     // Boundary Elements
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -220,8 +204,7 @@ void DS(double RH_Air, double finalDisp, double dryingTime, double dryingDelta_t
     S.GroupAddNodeFunction(BoundaryNodesGroup, [](NodeBase* node) -> bool {
         auto coords = node->Get(Node::eDof::COORDINATES);
         auto r = std::sqrt(coords[0] * coords[0] + coords[1] * coords[1]);
-        if (r > std::abs(cylinderDiameter / 2.) - 1e-6 || coords[2] >= cylinderHeight / 2 - 1e-3 ||
-            coords[2] <= -cylinderHeight / 2)
+        if (r > std::abs(cylinderDiameter / 2.) - 1e-6 || coords[2] >= cylinderHeight - 1e-3 || coords[2] <= 0 + 1e-3)
             return true;
         return false;
     });
@@ -419,7 +402,7 @@ void DS(double RH_Air, double finalDisp, double dryingTime, double dryingDelta_t
 
     NM.ClearActiveDofCalculationSteps();
     NM.AddCalculationStep({Node::eDof::DISPLACEMENTS, Node::eDof::NONLOCALEQSTRAIN});
-    NM.SetMaxTimeStep(dryingTime / 100.);
+    NM.SetMaxTimeStep(dryingTime / 400.);
     NM.SetMinTimeStep(dryingTime / 10000.);
     NM.SetTimeStep(dryingTime / 400.);
     NM.PostProcessing().SetMinTimeStepPlot(dryingTime / 50.);
@@ -432,6 +415,6 @@ void DS(double RH_Air, double finalDisp, double dryingTime, double dryingDelta_t
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 int main()
 {
-    DS(1.0, -0.04, 200.0, 10., true, "DamageShrinkage3d");
+    DS(0.5, -2, 400.0, 20., true, "DamageShrinkage3d");
     return 0;
 }
