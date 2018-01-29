@@ -53,13 +53,60 @@ constexpr double tolWF = 1e-5;
 constexpr double tolRH = 1e-5;
 constexpr int maxIter = 10;
 
+// Helper functions and classes
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+struct SimulationSetup
+{
+    // Drying
+    double RH_env = 1.0;
+    double RH_initial = 1.0;
+    double dryingTime = 0.;
+    double dryingTimeRamp = 40;
+    double initialTimestepDrying = 1.0;
+    int dryingMaxIter = 10;
+
+    // Compression Test
+    double maxCompression = 2;
+    double compressionTime = 1.;
+    double maxCompressionDeltaTime = 0.001;
+
+    // Post Processing
+    int numWritesDrying = 4;
+    int numWritesCompression = 100;
+};
+
+
+double ArgToDouble(std::string Arg)
+{
+    try
+    {
+        double number = std::stod(Arg);
+        return number;
+    }
+    catch (std::invalid_argument e)
+    {
+        throw Exception(__PRETTY_FUNCTION__, "Could not cast \"" + Arg + "\" into a double!");
+    }
+}
 
 // Simulation
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-void DS(double RH_Air, double finalDisp, double dryingTime, double dryingDelta_t, bool useStressbased,
-        std::string simulationName)
+void DS(SimulationSetup setup, bool useStressbased, std::string simulationName)
 {
+
+    // Check Setup
+    // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    if (setup.dryingTime < setup.dryingTimeRamp)
+        throw Exception(__PRETTY_FUNCTION__,
+                        "Drying time is smaller than the time to reduce the relative humidity to its target value");
+    setup.maxCompression = std::abs(setup.maxCompression);
+
+    // Structure and TimeIntegration
+    // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
     Structure S(3);
     NewmarkDirect NM(&S);
 
@@ -69,16 +116,6 @@ void DS(double RH_Air, double finalDisp, double dryingTime, double dryingDelta_t
 
     // Mesh
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    //    Eigen::Vector3d start{0., 0., 0};
-    //    Eigen::Vector3d end{1., 1., 1};
-    //    Eigen::Vector3i subdivisions{6, 6, 18};
-    //    int elementGroup_Id = -1;
-    //    int interpolationType_Id = -1;
-    //    auto meshData = std::tie(elementGroup_Id, interpolationType_Id);
-    //    meshData = MeshGenerator::Grid(S, start, end, subdivisions, eShapeType::BRICK3D);
-
-    //    assert(elementGroup_Id > -1);
-    //    assert(interpolationType_Id > -1);
 
     auto meshData = S.ImportFromGmsh("Cylinder.msh");
 
@@ -112,11 +149,11 @@ void DS(double RH_Air, double finalDisp, double dryingTime, double dryingDelta_t
     int lawMT_Id = S.ConstitutiveLawCreate(eConstitutiveType::MOISTURE_TRANSPORT);
     S.ConstitutiveLawSetParameterBool(lawMT_Id, eConstitutiveParameter::ENABLE_MODIFIED_TANGENTIAL_STIFFNESS, false);
     S.ConstitutiveLawSetParameterBool(lawMT_Id, eConstitutiveParameter::ENABLE_MODIFIED_TANGENTIAL_STIFFNESS, false);
-    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::BOUNDARY_DIFFUSION_COEFFICIENT_RH, 1.0e-3);
-    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::BOUNDARY_DIFFUSION_COEFFICIENT_WV, 1.0e5);
+    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::BOUNDARY_DIFFUSION_COEFFICIENT_RH, 1.0e5);
+    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::BOUNDARY_DIFFUSION_COEFFICIENT_WV, 1.0e9);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DENSITY_WATER, 999.97);
-    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_COEFFICIENT_RH, 3.9e-4);
-    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_COEFFICIENT_WV, 1.17e3);
+    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_COEFFICIENT_RH, 1.0e-2);
+    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_COEFFICIENT_WV, 1.0e5);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_EXPONENT_RH, 1.0);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_EXPONENT_WV, 1.0);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::GRADIENT_CORRECTION_ADSORPTION_DESORPTION,
@@ -170,7 +207,7 @@ void DS(double RH_Air, double finalDisp, double dryingTime, double dryingDelta_t
     // Integration type
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    S.InterpolationTypeSetIntegrationType(interpolationType_Id, eIntegrationType::IntegrationType3D8NGauss2x2x2Ip);
+    S.InterpolationTypeSetIntegrationType(interpolationType_Id, eIntegrationType::IntegrationType3D8NLobatto5x5x5Ip);
 
     // Interpolation type
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -199,7 +236,6 @@ void DS(double RH_Air, double finalDisp, double dryingTime, double dryingDelta_t
     // Boundary Elements
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    double initialRH = 1.;
     int BoundaryNodesGroup = S.GroupCreateNodeGroup();
     S.GroupAddNodeFunction(BoundaryNodesGroup, [](NodeBase* node) -> bool {
         auto coords = node->Get(Node::eDof::COORDINATES);
@@ -220,15 +256,15 @@ void DS(double RH_Air, double finalDisp, double dryingTime, double dryingDelta_t
             S.BoundaryElementsCreate(ElementsAtBoundariesGroup, BoundaryNodesGroup, boundaryControlNodePtr);
 
     S.Constraints().Add(NuTo::Node::eDof::RELATIVEHUMIDITY,
-                        NuTo::Constraint::Value(
-                                *boundaryControlNodePtr, [initialRH, RH_Air, dryingDelta_t](double rTime) -> double {
-                                    if (rTime == 0.) // || rTime > SIMULATIONTIME / 2.0)
-                                        return initialRH;
-                                    else if (rTime < dryingDelta_t * 5)
-                                        return initialRH - rTime / (dryingDelta_t * 5) * (initialRH - RH_Air);
-                                    else
-                                        return RH_Air;
-                                }));
+                        NuTo::Constraint::Value(*boundaryControlNodePtr, [&setup](double rTime) -> double {
+                            if (rTime == 0.) // || rTime > SIMULATIONTIME / 2.0)
+                                return setup.RH_initial;
+                            else if (rTime < setup.dryingTimeRamp)
+                                return setup.RH_initial -
+                                       rTime / setup.dryingTimeRamp * (setup.RH_initial - setup.RH_env);
+                            else
+                                return setup.RH_env;
+                        }));
 
     std::vector<int> boundaryElementIDsVector;
     S.ElementGroupGetMembers(boundaryElementsGroup, boundaryElementIDsVector);
@@ -237,7 +273,7 @@ void DS(double RH_Air, double finalDisp, double dryingTime, double dryingDelta_t
     for (int elementId : boundaryElementIDsVector)
     {
         S.ElementGetElementPtr(elementId)->SetIntegrationType(
-                *S.GetPtrIntegrationType(NuTo::eIntegrationType::IntegrationType2D4NGauss9Ip));
+                *S.GetPtrIntegrationType(NuTo::eIntegrationType::IntegrationType2D3NGauss16Ip));
     }
 
     // Initial Values
@@ -252,14 +288,14 @@ void DS(double RH_Air, double finalDisp, double dryingTime, double dryingDelta_t
 
     S.NodeGroupGetMembers(S.GroupCreateNodeGroupFromElements(allElementsGroup_Id), nodeIDVectorMatrix);
     double initialWV = S.ConstitutiveLawGetEquilibriumWaterVolumeFraction(
-            lawMT_Id, initialRH,
+            lawMT_Id, setup.RH_initial,
             S.ConstitutiveLawGetParameterFullVectorDouble(
                     lawMT_Id, Constitutive::eConstitutiveParameter::POLYNOMIAL_COEFFICIENTS_DESORPTION));
     for (auto nodeID : nodeIDVectorMatrix)
     {
         auto nodePtr = S.NodeGetNodePtr(nodeID);
         if (nodePtr->IsDof(NuTo::Node::eDof::RELATIVEHUMIDITY))
-            nodePtr->Set(NuTo::Node::eDof::RELATIVEHUMIDITY, 0, initialRH);
+            nodePtr->Set(NuTo::Node::eDof::RELATIVEHUMIDITY, 0, setup.RH_initial);
         if (nodePtr->IsDof(NuTo::Node::eDof::WATERVOLUMEFRACTION))
             nodePtr->Set(NuTo::Node::eDof::WATERVOLUMEFRACTION, 0, initialWV);
     }
@@ -287,7 +323,7 @@ void DS(double RH_Air, double finalDisp, double dryingTime, double dryingDelta_t
                     eConstitutiveParameter::POLYNOMIAL_COEFFICIENTS_DESORPTION));
             moistureData.SetCurrentSorptionCoeff(lawMT_Ptr->GetParameterFullVectorDouble(
                     eConstitutiveParameter::POLYNOMIAL_COEFFICIENTS_DESORPTION));
-            moistureData.SetLastRelHumValue(initialRH);
+            moistureData.SetLastRelHumValue(setup.RH_initial);
             moistureData.SetDesorption(true);
         }
     }
@@ -300,11 +336,12 @@ void DS(double RH_Air, double finalDisp, double dryingTime, double dryingDelta_t
 
     S.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(bottomNodesGroup, {eDirection::Z}));
     S.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(topNodesGroup, {eDirection::Z},
-                                                                         [dryingTime, finalDisp](double t) {
-                                                                             if (t < dryingTime)
+                                                                         [&setup](double t) {
+                                                                             if (t < setup.dryingTime)
                                                                                  return 0.0;
-                                                                             return (t - dryingTime) /
-                                                                                    (dryingTime)*finalDisp;
+                                                                             return (t - setup.dryingTime) /
+                                                                                    (setup.compressionTime) *
+                                                                                    (-1 * setup.maxCompression);
                                                                          }));
     auto& nodeOrigin = S.NodeGetAtCoordinate(Eigen::VectorXd::Zero(3), 1e-6);
     //    S.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(nodeOrigin, {eDirection::X}));
@@ -361,6 +398,86 @@ void DS(double RH_Air, double finalDisp, double dryingTime, double dryingDelta_t
 
     });
 
+    // Setup custom timestepping
+    // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+    NM.GetTimeControl().SetTimeStepFunction([&setup](TimeControl& timeControl, int iterations, int maxIterations,
+                                                     bool converged) -> double {
+        struct TimestepHelper
+        {
+            double prevTimestep = 0.;
+            bool isTimestepAdjusted = false;
+        };
+
+        static TimestepHelper timestepHelper;
+
+        if (converged)
+        {
+            double timestep = timeControl.GetTimeStep();
+            double currTime = timeControl.GetCurrentTime();
+
+            if (timestepHelper.isTimestepAdjusted)
+            {
+                timestep = timestepHelper.prevTimestep;
+                timestepHelper.isTimestepAdjusted = false;
+            }
+            else
+            {
+                if (iterations < 0.25 * maxIterations)
+                {
+                    timestep = timeControl.GetTimeStep() * 2.0;
+                    if (timestep > timeControl.GetMaxTimeStep())
+                        timestep = timeControl.GetMaxTimeStep();
+                }
+                else
+                    timestep = timeControl.GetTimeStep();
+            }
+
+            if (currTime < setup.dryingTime)
+            {
+                double nextTime = currTime + timestep;
+
+                double currNumWrites = std::floor(currTime / (setup.dryingTime / setup.numWritesDrying));
+                double nextWriteTime = (currNumWrites + 1) * setup.dryingTime / setup.numWritesDrying;
+
+                if ((nextTime + timeControl.GetMinTimeStep() > nextWriteTime))
+                {
+                    timestepHelper.prevTimestep = timestep;
+                    timestepHelper.isTimestepAdjusted = true;
+                    timestep = nextWriteTime - currTime +
+                               1e-10; // +1e-10 to avoid floating point problems (minimal timestep)
+                }
+            }
+            else
+            {
+                double nextTime = currTime + timestep;
+                double currCompressionTime = currTime - setup.dryingTime;
+                double currNumWrites =
+                        std::floor(currCompressionTime / (setup.compressionTime / setup.numWritesCompression));
+                double nextWriteTime =
+                        (currNumWrites + 1) * setup.compressionTime / setup.numWritesCompression + setup.dryingTime;
+
+                if (nextTime + timeControl.GetMinTimeStep() > nextWriteTime)
+                {
+                    timestepHelper.prevTimestep = timestep;
+                    timestepHelper.isTimestepAdjusted = true;
+                    timestep = nextWriteTime - currTime +
+                               1e-10; // +1e-10 to avoid floating point problems (minimal timestep)
+                }
+            }
+
+            return timestep;
+        }
+        else
+        {
+            timeControl.RestorePreviousTime();
+            return timeControl.GetTimeStep() * 0.5;
+        }
+    });
+
+    NM.GetTimeControl().AdjustTimestep(0, 1, true);
+
 
     // Visualization
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -389,32 +506,78 @@ void DS(double RH_Air, double finalDisp, double dryingTime, double dryingDelta_t
 
     NM.AddCalculationStep({Node::eDof::RELATIVEHUMIDITY, Node::eDof::WATERVOLUMEFRACTION});
     NM.AddCalculationStep({Node::eDof::DISPLACEMENTS, Node::eDof::NONLOCALEQSTRAIN});
-    NM.SetAutomaticTimeStepping(true);
-    NM.SetMaxTimeStep(dryingDelta_t);
-    NM.SetMinTimeStep(dryingDelta_t / 1000);
-    NM.SetTimeStep(dryingDelta_t);
+    NM.SetMaxTimeStep(setup.dryingTime / setup.numWritesDrying);
+    NM.SetMinTimeStep(1e-4);
+    NM.SetTimeStep(setup.initialTimestepDrying);
     NM.SetPerformLineSearch(false);
-    NM.SetMaxNumIterations(maxIter);
-    NM.PostProcessing().SetMinTimeStepPlot(dryingDelta_t);
+    NM.SetMaxNumIterations(setup.dryingMaxIter);
+    NM.PostProcessing().SetMinTimeStepPlot(setup.dryingTime / setup.numWritesDrying);
     NM.PostProcessing().SetResultDirectory(simulationName, true);
-    NM.Solve(dryingTime);
+    NM.Solve(setup.dryingTime);
 
 
     NM.ClearActiveDofCalculationSteps();
     NM.AddCalculationStep({Node::eDof::DISPLACEMENTS, Node::eDof::NONLOCALEQSTRAIN});
-    NM.SetMaxTimeStep(dryingTime / 400.);
-    NM.SetMinTimeStep(dryingTime / 10000.);
-    NM.SetTimeStep(dryingTime / 400.);
-    NM.PostProcessing().SetMinTimeStepPlot(dryingTime / 50.);
-    NM.Solve(dryingTime * 2);
+    NM.SetMaxTimeStep(setup.maxCompressionDeltaTime);
+    NM.SetMinTimeStep(setup.maxCompressionDeltaTime / 10000.);
+    NM.SetTimeStep(setup.maxCompressionDeltaTime);
+    NM.PostProcessing().SetMinTimeStepPlot(setup.compressionTime / setup.numWritesCompression);
+    NM.Solve(setup.dryingTime + setup.compressionTime);
     outputFile.close();
 }
 
 
 // Main
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-int main()
+int main(int NumArgs, char* Args[])
 {
-    DS(0.5, -2, 400.0, 20., true, "DamageShrinkage3d");
-    return 0;
+
+    try
+    {
+        if (NumArgs > 1)
+        {
+            std::cout << "Number of arguments: " << NumArgs - 1 << std::endl;
+            for (int i = 1; i < NumArgs; ++i)
+                std::cout << "Argument " << i << ": " << Args[i] << std::endl;
+
+            SimulationSetup setup;
+            setup.RH_env = ArgToDouble(Args[1]);
+
+            if (NumArgs == 2)
+            {
+                std::cout << std::endl << "Starting simulation with the following parameters:" << std::endl;
+                std::cout << "Environmental relative humidity = " << setup.RH_env << std::endl;
+            }
+        }
+        else
+        {
+            SimulationSetup setup;
+            setup.RH_env = 0.4;
+            setup.dryingTime = 80.;
+            setup.dryingTimeRamp = 40.;
+            setup.numWritesDrying = 20;
+
+            //            setup.RH_env = 1.0;
+            //            setup.dryingTime = 10.;
+            //            setup.dryingTimeRamp = 10.;
+            //            setup.numWritesDrying = 1;
+            DS(setup, true, "DamageShrinkage3d");
+        }
+        return 0;
+    }
+    catch (Exception e)
+    {
+
+        std::cout << "NUTO exception occured:" << std::endl << e.what() << std::endl;
+    }
+    catch (std::exception e)
+    {
+
+        std::cout << "STD exception occured:" << std::endl << e.what() << std::endl;
+    }
+    catch (...)
+    {
+
+        std::cout << "UNKNOWN exception occured:" << std::endl;
+    }
 }
