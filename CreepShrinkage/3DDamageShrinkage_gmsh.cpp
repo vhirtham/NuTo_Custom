@@ -49,8 +49,8 @@ constexpr double cylinderHeight = 300.;
 // iteration
 constexpr double tolDisp = 1e-6;
 constexpr double tolNLES = 1e-6;
-constexpr double tolWF = 1e-5;
-constexpr double tolRH = 1e-5;
+constexpr double tolWF = 1e-3;
+constexpr double tolRH = 1e-3;
 constexpr int maxIter = 10;
 
 // Helper functions and classes
@@ -150,17 +150,17 @@ void DS(SimulationSetup setup, bool useStressbased, std::string simulationName)
     S.ConstitutiveLawSetParameterBool(lawMT_Id, eConstitutiveParameter::ENABLE_MODIFIED_TANGENTIAL_STIFFNESS, false);
     S.ConstitutiveLawSetParameterBool(lawMT_Id, eConstitutiveParameter::ENABLE_MODIFIED_TANGENTIAL_STIFFNESS, false);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::BOUNDARY_DIFFUSION_COEFFICIENT_RH, 1.0e4);
-    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::BOUNDARY_DIFFUSION_COEFFICIENT_WV, 1.0e9);
+    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::BOUNDARY_DIFFUSION_COEFFICIENT_WV, 5.0e9);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DENSITY_WATER, 999.97);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_COEFFICIENT_RH, 5.0e-1);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_COEFFICIENT_WV, 1.0e5);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_EXPONENT_RH, 1.0);
-    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_EXPONENT_WV, 1.0);
+    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_EXPONENT_WV, 5.0);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::GRADIENT_CORRECTION_ADSORPTION_DESORPTION,
                                         0.56);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::GRADIENT_CORRECTION_DESORPTION_ADSORPTION,
                                         0.26);
-    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::MASS_EXCHANGE_RATE, 0.e-8);
+    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::MASS_EXCHANGE_RATE, 1.e-2);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::PORE_VOLUME_FRACTION, 0.25);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DENSITY_SATURATED_WATER_VAPOR, 0.0173);
     S.ConstitutiveLawSetParameterFullVectorDouble(
@@ -554,7 +554,7 @@ int main(int NumArgs, char* Args[])
             SimulationSetup setup;
             setup.RH_env = 0.4;
             setup.dryingTime = 8.;
-            setup.dryingTimeRamp = 1.;
+            setup.dryingTimeRamp = 0.5;
             setup.initialTimestepDrying = 0.1;
             setup.numWritesDrying = 20;
 
