@@ -62,14 +62,14 @@ struct SimulationSetup
     double RH_env = 1.0;
     double RH_initial = 1.0;
     double dryingTime = 0.;
-    double dryingTimeRamp = 40;
-    double initialTimestepDrying = 1.0;
+    double dryingTimeRamp = 0.5;
+    double initialTimestepDrying = 0.1;
     int dryingMaxIter = 10;
 
     // Compression Test
     double maxCompression = 2;
     double compressionTime = 1.;
-    double maxCompressionDeltaTime = 0.001;
+    double maxCompressionDeltaTime = 0.0025;
 
     // Post Processing
     int numWritesDrying = 4;
@@ -90,6 +90,20 @@ double ArgToDouble(std::string Arg)
     }
 }
 
+
+int ArgToInt(std::string Arg)
+{
+    try
+    {
+        int number = std::stoi(Arg);
+        return number;
+    }
+    catch (std::invalid_argument e)
+    {
+        throw Exception(__PRETTY_FUNCTION__, "Could not cast \"" + Arg + "\" into an integer!");
+    }
+}
+
 // Simulation
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -102,7 +116,18 @@ void DS(SimulationSetup setup, bool useStressbased, std::string simulationName)
     if (setup.dryingTime < setup.dryingTimeRamp)
         throw Exception(__PRETTY_FUNCTION__,
                         "Drying time is smaller than the time to reduce the relative humidity to its target value");
+    if (1 < setup.RH_env)
+        throw Exception(__PRETTY_FUNCTION__, "Relative humidity must be in the range [0,1]");
+
+    if (0. >= setup.maxCompressionDeltaTime)
+        throw Exception(__PRETTY_FUNCTION__, "Delta t of compression period must be > 0!");
     setup.maxCompression = std::abs(setup.maxCompression);
+
+
+    // Adjust test name
+    // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    simulationName = simulationName + "_RH" + std::to_string(setup.RH_env) + "_T" + std::to_string(setup.dryingTime);
 
     // Structure and TimeIntegration
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -149,10 +174,10 @@ void DS(SimulationSetup setup, bool useStressbased, std::string simulationName)
     int lawMT_Id = S.ConstitutiveLawCreate(eConstitutiveType::MOISTURE_TRANSPORT);
     S.ConstitutiveLawSetParameterBool(lawMT_Id, eConstitutiveParameter::ENABLE_MODIFIED_TANGENTIAL_STIFFNESS, false);
     S.ConstitutiveLawSetParameterBool(lawMT_Id, eConstitutiveParameter::ENABLE_MODIFIED_TANGENTIAL_STIFFNESS, false);
-    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::BOUNDARY_DIFFUSION_COEFFICIENT_RH, 1.0e4);
+    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::BOUNDARY_DIFFUSION_COEFFICIENT_RH, 5.0e3);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::BOUNDARY_DIFFUSION_COEFFICIENT_WV, 5.0e9);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DENSITY_WATER, 999.97);
-    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_COEFFICIENT_RH, 5.0e-1);
+    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_COEFFICIENT_RH, 2.5e-1);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_COEFFICIENT_WV, 1.0e5);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_EXPONENT_RH, 1.0);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DIFFUSION_EXPONENT_WV, 5.0);
@@ -160,7 +185,7 @@ void DS(SimulationSetup setup, bool useStressbased, std::string simulationName)
                                         0.56);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::GRADIENT_CORRECTION_DESORPTION_ADSORPTION,
                                         0.26);
-    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::MASS_EXCHANGE_RATE, 1.e-2);
+    S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::MASS_EXCHANGE_RATE, 2.e-3);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::PORE_VOLUME_FRACTION, 0.25);
     S.ConstitutiveLawSetParameterDouble(lawMT_Id, eConstitutiveParameter::DENSITY_SATURATED_WATER_VAPOR, 0.0173);
     S.ConstitutiveLawSetParameterFullVectorDouble(
@@ -362,7 +387,7 @@ void DS(SimulationSetup setup, bool useStressbased, std::string simulationName)
 
 
     std::ofstream outputFile;
-    outputFile.open("SD.txt");
+    outputFile.open(simulationName + ".txt");
     outputFile << "Time, displacement_axialTop, displacement_axialBottom, sigma_axialTop, sigma_axialBottom\n";
 
 
@@ -531,37 +556,79 @@ void DS(SimulationSetup setup, bool useStressbased, std::string simulationName)
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 int main(int NumArgs, char* Args[])
 {
-
+    constexpr int neededNumArgs = 6;
     try
     {
         if (NumArgs > 1)
         {
+            SimulationSetup setup;
+            if (Args[1][0] == '-')
+            {
+                std::string command(Args[1]);
+                if (command.compare("-h") == 0 || command.compare("-help") == 0)
+                {
+                    std::cout << "Necessary number of arguments:" << neededNumArgs << std::endl << std::endl;
+                    std::cout << "Argument 1: Environmental relative humidity [0,1]" << std::endl;
+                    std::cout << "Argument 2: drying Time (> " << setup.dryingTimeRamp << ")" << std::endl;
+                    std::cout << "Argument 3: Number of postprocessings during drying period" << std::endl;
+                    std::cout << "Argument 4: Minimum number of timesteps during compression period (should be > 20)"
+                              << std::endl;
+                    std::cout << "Argument 5: Number of postprocessings during compression period" << std::endl;
+                    return 0;
+                }
+                else
+                {
+                    std::cout << "Unknown command: \"" << Args[1] << "\"" << std::endl;
+                    return 0;
+                }
+            }
+
             std::cout << "Number of arguments: " << NumArgs - 1 << std::endl;
             for (int i = 1; i < NumArgs; ++i)
                 std::cout << "Argument " << i << ": " << Args[i] << std::endl;
 
-            SimulationSetup setup;
-            setup.RH_env = ArgToDouble(Args[1]);
 
-            if (NumArgs == 2)
+            if (NumArgs == neededNumArgs)
             {
+                setup.RH_env = ArgToDouble(Args[1]);
+                setup.dryingTime = ArgToDouble(Args[2]);
+                setup.numWritesDrying = ArgToInt(Args[3]);
+                setup.maxCompressionDeltaTime = setup.maxCompression / std::round(ArgToDouble(Args[4]));
+                setup.numWritesCompression = ArgToInt(Args[5]);
+
                 std::cout << std::endl << "Starting simulation with the following parameters:" << std::endl;
-                std::cout << "Environmental relative humidity = " << setup.RH_env << std::endl;
+                std::cout << "Environmental relative humidity = " << setup.RH_env << " [0,1]" << std::endl;
+                std::cout << "Length of the drying period = " << setup.dryingTime << " (> " << setup.dryingTimeRamp
+                          << ")" << std::endl;
+                std::cout << "Number of postprocessings during drying period = " << setup.numWritesDrying << std::endl;
+                std::cout << "Maximum timestep during compression period = " << setup.maxCompressionDeltaTime
+                          << " (should be < " << setup.compressionTime / 20. << ")" << std::endl;
+                std::cout << "Number of postprocessings during compression period = " << setup.numWritesCompression
+                          << std::endl;
+                DS(setup, true, "DS");
+            }
+            else
+            {
+                std::cout << std::endl
+                          << "Incorrect number of parameters: " << NumArgs - 1 << std::endl
+                          << "Necessary number of arguments:" << neededNumArgs - 1 << std::endl
+                          << "Use -h to get parameter Info ... Closing program!" << std::endl;
             }
         }
         else
         {
             SimulationSetup setup;
             setup.RH_env = 0.4;
-            setup.dryingTime = 8.;
+            setup.dryingTime = 200.;
             setup.dryingTimeRamp = 0.5;
             setup.initialTimestepDrying = 0.1;
-            setup.numWritesDrying = 20;
+            setup.numWritesDrying = 40;
 
-            //            setup.RH_env = 1.0;
-            //            setup.dryingTime = 10.;
-            //            setup.dryingTimeRamp = 10.;
-            //            setup.numWritesDrying = 1;
+            setup.RH_env = 1.0;
+            setup.dryingTime = 10.;
+            setup.dryingTimeRamp = 10.;
+            setup.numWritesDrying = 1;
+            setup.maxCompressionDeltaTime = 0.01;
             DS(setup, true, "DamageShrinkage3d");
         }
         return 0;

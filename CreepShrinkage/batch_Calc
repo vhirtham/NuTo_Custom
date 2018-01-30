@@ -1,0 +1,8 @@
+#!/bin/sh -x
+./3DDamageShrinkage_gmsh -h
+./3DDamageShrinkage_gmsh 1.0 0.5 1 100 100
+./3DDamageShrinkage_gmsh 0.4 50 20 100 100
+./3DDamageShrinkage_gmsh 0.4 100 20 100 100
+./3DDamageShrinkage_gmsh 0.4 150 20 100 100
+./3DDamageShrinkage_gmsh 0.4 200 20 100 100
+
