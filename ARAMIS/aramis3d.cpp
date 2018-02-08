@@ -7,6 +7,7 @@
 #include "mechanics/constraints/Constraints.h"
 #include "mechanics/constraints/ConstraintCompanion.h"
 #include "mechanics/elements/ElementBase.h"
+#include "mechanics/elements/ElementBase.h"
 #include "mechanics/integrationtypes/IntegrationTypeEnum.h"
 #include "mechanics/groups/Group.h"
 #include "mechanics/nodes/NodeBase.h"
@@ -142,10 +143,13 @@ void DS(SimulationSetup setup, bool useStressbased, std::string simulationName)
     // Mesh
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    auto meshData = S.ImportFromGmsh("Cylinder.msh");
+    auto meshData = S.ImportFromGmsh("ARAMIS3dgrob.msh");
 
-    int elementGroup_Id = meshData[0].first;
-    int interpolationType_Id = meshData[0].second;
+    int elementGroupMatrix_Id = meshData[0].first;
+    int interpolationTypeMatrix_Id = meshData[0].second;
+    int elementGroupCylinder_Id = meshData[1].first;
+    int interpolationTypeCylinder_Id = meshData[1].second;
+    // auto prism = NuTo::MeshCompanion::ElementPrismsCreate(S, elementGroupMatrix_Id, elementGroupCylinder_Id, 0.1);
 
     std::vector<int> allNodes_Ids;
     S.NodeGroupGetMembers(S.GroupGetNodesTotal(), allNodes_Ids);
@@ -155,12 +159,14 @@ void DS(SimulationSetup setup, bool useStressbased, std::string simulationName)
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     // mechanics
-    //    int lawGD_Id = S.ConstitutiveLawCreate(eConstitutiveType::LINEAR_ELASTIC_ENGINEERING_STRESS);
+    int lawLE_Id = S.ConstitutiveLawCreate(eConstitutiveType::LINEAR_ELASTIC_ENGINEERING_STRESS);
+    S.ConstitutiveLawSetParameterDouble(lawLE_Id, eConstitutiveParameter::YOUNGS_MODULUS, youngsModulus * 2);
+    S.ConstitutiveLawSetParameterDouble(lawLE_Id, eConstitutiveParameter::POISSONS_RATIO, poissonRatio);
+
     int lawGD_Id = S.ConstitutiveLawCreate(eConstitutiveType::GRADIENT_DAMAGE_ENGINEERING_STRESS);
 
     S.ConstitutiveLawSetParameterDouble(lawGD_Id, eConstitutiveParameter::YOUNGS_MODULUS, youngsModulus);
     S.ConstitutiveLawSetParameterDouble(lawGD_Id, eConstitutiveParameter::POISSONS_RATIO, poissonRatio);
-
     S.ConstitutiveLawSetParameterDouble(lawGD_Id, eConstitutiveParameter::DENSITY, 1.0);
     S.ConstitutiveLawSetParameterDouble(lawGD_Id, eConstitutiveParameter::NONLOCAL_RADIUS, 1);
     S.ConstitutiveLawSetParameterDouble(lawGD_Id, eConstitutiveParameter::TENSILE_STRENGTH, tensileStrength);
@@ -226,32 +232,41 @@ void DS(SimulationSetup setup, bool useStressbased, std::string simulationName)
         lawAO_Ptr->AddConstitutiveLaw(*S.ConstitutiveLawGetConstitutiveLawPtr(lawMT_Id));
     }
 
-    S.ElementGroupSetConstitutiveLaw(elementGroup_Id, lawAO_Id);
+    S.ElementGroupSetConstitutiveLaw(elementGroupMatrix_Id, lawAO_Id);
+    S.ElementGroupSetConstitutiveLaw(elementGroupCylinder_Id, lawLE_Id);
 
 
     // Integration type
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    S.InterpolationTypeSetIntegrationType(interpolationType_Id, eIntegrationType::IntegrationType3D8NLobatto5x5x5Ip);
+    S.InterpolationTypeSetIntegrationType(interpolationTypeMatrix_Id,
+                                          eIntegrationType::IntegrationType3D8NGauss2x2x2Ip);
+    S.InterpolationTypeSetIntegrationType(interpolationTypeCylinder_Id,
+                                          eIntegrationType::IntegrationType3D8NGauss2x2x2Ip);
 
     // Interpolation type
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     // matrix
-    S.InterpolationTypeAdd(interpolationType_Id, Node::eDof::DISPLACEMENTS, eTypeOrder::EQUIDISTANT2);
-    S.InterpolationTypeAdd(interpolationType_Id, Node::eDof::NONLOCALEQSTRAIN, Interpolation::eTypeOrder::EQUIDISTANT2);
-    S.InterpolationTypeAdd(interpolationType_Id, Node::eDof::RELATIVEHUMIDITY, Interpolation::eTypeOrder::EQUIDISTANT2);
-    S.InterpolationTypeAdd(interpolationType_Id, Node::eDof::WATERVOLUMEFRACTION,
+    S.InterpolationTypeAdd(interpolationTypeMatrix_Id, Node::eDof::DISPLACEMENTS, eTypeOrder::EQUIDISTANT2);
+    S.InterpolationTypeAdd(interpolationTypeMatrix_Id, Node::eDof::NONLOCALEQSTRAIN,
+                           Interpolation::eTypeOrder::EQUIDISTANT2);
+    S.InterpolationTypeAdd(interpolationTypeMatrix_Id, Node::eDof::RELATIVEHUMIDITY,
+                           Interpolation::eTypeOrder::EQUIDISTANT2);
+    S.InterpolationTypeAdd(interpolationTypeMatrix_Id, Node::eDof::WATERVOLUMEFRACTION,
                            Interpolation::eTypeOrder::EQUIDISTANT2);
 
 
+    S.InterpolationTypeAdd(interpolationTypeCylinder_Id, Node::eDof::DISPLACEMENTS, eTypeOrder::EQUIDISTANT2);
+
+    // MeshCompanion::ElementPrismsCreate()
     S.ElementTotalConvertToInterpolationType();
 
     // Create necessary groups before mesh mapping
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    auto& bottomNodesGroup = S.GroupGetNodeCoordinateRange(eDirection::Z, 0. - 1e-6, 0. + 1e-6);
-    auto& topNodesGroup = S.GroupGetNodeCoordinateRange(eDirection::Z, 300 - 1e-6, 300 + 1e+6);
+    auto& bottomNodesGroup = S.GroupGetNodeCoordinateRange(eDirection::Y, 0. - 1e-6, 0. + 1e-6);
+    auto& topNodesGroup = S.GroupGetNodeCoordinateRange(eDirection::Y, 200 - 1e-6, 200 + 1e+6);
     int topElementsGroup_Id = S.GroupCreateElementGroup();
     int bottomElementsGroup_Id = S.GroupCreateElementGroup();
     S.GroupAddElementsFromNodes(topElementsGroup_Id, S.GroupGetId(&topNodesGroup), false);
@@ -262,11 +277,12 @@ void DS(SimulationSetup setup, bool useStressbased, std::string simulationName)
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     int BoundaryNodesGroup = S.GroupCreateNodeGroup();
-    S.GroupAddNodeFunction(BoundaryNodesGroup, [](NodeBase* node) -> bool {
-        auto coords = node->Get(Node::eDof::COORDINATES);
-        auto r = std::sqrt(coords[0] * coords[0] + coords[1] * coords[1]);
-        if (r > std::abs(cylinderDiameter / 2.) - 1e-6 || coords[2] >= cylinderHeight - 1e-3 || coords[2] <= 0 + 1e-3)
-            return true;
+    S.GroupAddNodeFunction(BoundaryNodesGroup, [](NodeBase* nodePtr) -> bool {
+        auto coords = nodePtr->Get(Node::eDof::COORDINATES);
+        if (nodePtr->IsDof(NuTo::Node::eDof::RELATIVEHUMIDITY) || nodePtr->IsDof(NuTo::Node::eDof::WATERVOLUMEFRACTION))
+            if (coords[0] >= 200 - 1e-3 || coords[0] <= 0 + 1e-3 || coords[1] >= 200 - 1e-3 || coords[1] <= 0 + 1e-3 ||
+                coords[2] >= 100 - 1e-3 || coords[2] <= 0 + 1e-3)
+                return true;
         return false;
     });
     int ElementsAtBoundariesGroup = S.GroupCreateElementGroup();
@@ -330,15 +346,23 @@ void DS(SimulationSetup setup, bool useStressbased, std::string simulationName)
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     auto lawMT_Ptr = S.ConstitutiveLawGetConstitutiveLawPtr(lawMT_Id);
-    std::vector<int> elementIDsMatrixVector;
+    std::vector<int> allElementIDsVector;
 
-    S.ElementGroupGetMembers(allElementsGroup_Id, elementIDsMatrixVector);
+    S.ElementGroupGetMembers(allElementsGroup_Id, allElementIDsVector);
 
-    for (unsigned int i = 0; i < elementIDsMatrixVector.size(); i++)
+    std::vector<int> cylinderElementIDsVector;
+    S.ElementGroupGetMembers(elementGroupCylinder_Id, cylinderElementIDsVector);
+
+    for (unsigned int i = 0; i < allElementIDsVector.size(); i++)
     {
-        for (int theIP = 0; theIP < S.ElementGetElementPtr(elementIDsMatrixVector[i])->GetNumIntegrationPoints();
-             theIP++)
+
+        for (int theIP = 0; theIP < S.ElementGetElementPtr(allElementIDsVector[i])->GetNumIntegrationPoints(); theIP++)
         {
+
+            // TODO: Skip elements of cylinders!
+            if (S.ElementGetElementPtr(i)->GetConstitutiveLaw(theIP).GetType() ==
+                eConstitutiveType::LINEAR_ELASTIC_ENGINEERING_STRESS)
+                break;
             IPAdditiveOutput& ipLawAO =
                     dynamic_cast<IPAdditiveOutput&>(S.ElementGetElementPtr(i)->GetIPData().GetIPConstitutiveLaw(theIP));
 
@@ -359,8 +383,8 @@ void DS(SimulationSetup setup, bool useStressbased, std::string simulationName)
     assert(bottomNodesGroup.GetNumMembers() > 0);
     assert(topNodesGroup.GetNumMembers() > 0);
 
-    S.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(bottomNodesGroup, {eDirection::Z}));
-    S.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(topNodesGroup, {eDirection::Z},
+    S.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(bottomNodesGroup, {eDirection::Y}));
+    S.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(topNodesGroup, {eDirection::Y},
                                                                          [&setup](double t) {
                                                                              if (t < setup.dryingTime)
                                                                                  return 0.0;
@@ -372,9 +396,9 @@ void DS(SimulationSetup setup, bool useStressbased, std::string simulationName)
     //    S.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(nodeOrigin, {eDirection::X}));
     //    S.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(nodeOrigin, {eDirection::Y}));
     S.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(bottomNodesGroup, {eDirection::X}));
-    S.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(bottomNodesGroup, {eDirection::Y}));
+    S.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(bottomNodesGroup, {eDirection::Z}));
     S.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(topNodesGroup, {eDirection::X}));
-    S.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(topNodesGroup, {eDirection::Y}));
+    S.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(topNodesGroup, {eDirection::Z}));
 
     // Postprocessing for compression test
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -507,7 +531,7 @@ void DS(SimulationSetup setup, bool useStressbased, std::string simulationName)
     // Visualization
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    int visualizeGroup = elementGroup_Id;
+    int visualizeGroup = elementGroupMatrix_Id;
     S.AddVisualizationComponent(visualizeGroup, eVisualizeWhat::DAMAGE);
     S.AddVisualizationComponent(visualizeGroup, eVisualizeWhat::LOCAL_EQ_STRAIN);
     S.AddVisualizationComponent(visualizeGroup, eVisualizeWhat::NONLOCAL_EQ_STRAIN);
@@ -619,17 +643,19 @@ int main(int NumArgs, char* Args[])
         {
             SimulationSetup setup;
             setup.RH_env = 0.4;
-            setup.dryingTime = 200.;
+            setup.dryingTime = 50.;
             setup.dryingTimeRamp = 0.5;
             setup.initialTimestepDrying = 0.1;
-            setup.numWritesDrying = 40;
+            setup.numWritesDrying = 25;
 
-            setup.RH_env = 1.0;
-            setup.dryingTime = 10.;
-            setup.dryingTimeRamp = 10.;
-            setup.numWritesDrying = 1;
-            setup.maxCompressionDeltaTime = 0.01;
-            DS(setup, true, "DamageShrinkage3d");
+            //            setup.RH_env = 1.0;
+            //            setup.dryingTime = 10.;
+            //            setup.dryingTimeRamp = 10.;
+            //            // setup.initialTimestepDrying = 5.;
+            //            setup.numWritesDrying = 10;
+            //            setup.maxCompressionDeltaTime = 0.01;
+
+            DS(setup, true, "Aramis3d");
         }
         return 0;
     }
