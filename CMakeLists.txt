@@ -25,6 +25,6 @@ link_directories("${CMAKE_CURRENT_BINARY_DIR}/lib")
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/scripts/cmake ${CMAKE_MODULE_PATH})
 include(IncludeScripts)
 
-
+add_subdirectory(src)
 add_subdirectory(tests)
 

@@ -6,14 +6,15 @@ function(addNuToTest TestName)
     ### Add prefix "Test_" to avoid target naming conflicts (for example with benchmarks or other GDL targets)
     #set(TestName "Test_${TestName}")
 
-    ### Find single object targets
-    #if(ARGN)
-    #    foreach(filename ${ARGN})
+    ### Find additional libs
+    if(ARGN)
+        foreach(objectName ${ARGN})
     #        singleSourceTargetName(${CMAKE_SOURCE_DIR}/src/${filename} target)
-    #        set(AdditionalObjects
-    #            "${AdditionalObjects};$<TARGET_OBJECTS:${target}>")
-    #    endforeach()
-    #endif()
+            set(AdditionalLibs
+                ${AdditionalLibs}
+                ${objectName})
+        endforeach()
+    endif()
 
     ### Create executable
     add_executable(${TestName}
@@ -27,8 +28,9 @@ function(addNuToTest TestName)
         Boost::unit_test_framework
         NuToBase
         NuToMath
-        NuToMechanics)
-
+        NuToMechanics
+        ${AdditionalLibs}
+        )
     ### Add source directory
     target_include_directories(${TestName}
         PUBLIC
