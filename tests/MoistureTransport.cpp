@@ -40,6 +40,14 @@ public:
     {
         return 0.;
     }
+    constexpr static double d_WaterVolumeFraction_dt(double WV, double RH, double WV_dt, double RH_dt)
+    {
+        return 0.;
+    }
+    constexpr static double d_RelativeHumidity_dt(double WV, double RH, double WV_dt, double RH_dt)
+    {
+        return 0.;
+    }
 };
 
 
@@ -57,6 +65,14 @@ public:
         return 0.;
     }
     constexpr static double d_RelativeHumidity(double WV, double RH, double WV_dt, double RH_dt)
+    {
+        return 0.;
+    }
+    constexpr static double d_WaterVolumeFraction_dt(double WV, double RH, double WV_dt, double RH_dt)
+    {
+        return 0.;
+    }
+    constexpr static double d_RelativeHumidity_dt(double WV, double RH, double WV_dt, double RH_dt)
     {
         return 0.;
     }
@@ -80,6 +96,14 @@ public:
     {
         return 0.;
     }
+    constexpr static double d_WaterVolumeFraction_dt(double WV, double RH, double WV_dt, double RH_dt)
+    {
+        return 0.;
+    }
+    constexpr static double d_RelativeHumidity_dt(double WV, double RH, double WV_dt, double RH_dt)
+    {
+        return 0.;
+    }
 };
 
 class WVEq
@@ -99,6 +123,14 @@ public:
     constexpr static double d_RelativeHumidity(double WV, double RH, double WV_dt, double RH_dt)
     {
         return coeff1;
+    }
+    constexpr static double d_WaterVolumeFraction_dt(double WV, double RH, double WV_dt, double RH_dt)
+    {
+        return 0.;
+    }
+    constexpr static double d_RelativeHumidity_dt(double WV, double RH, double WV_dt, double RH_dt)
+    {
+        return 0.;
     }
 };
 

@@ -2,6 +2,54 @@
 #include "MoistureTransport.h"
 
 
+#define EXTRACTCOMMONVARS                                                                                              \
+    const Eigen::VectorXd WV = cellData.GetNodeValues(mDofTypeWV); /*discretized water volume fraction*/               \
+    const Eigen::MatrixXd Nw = cellIpData.GetNMatrix(mDofTypeWV); /*shape function of the water phase*/                \
+    const Eigen::MatrixXd Bw = cellIpData.GetBMatrixGradient(mDofTypeWV); /* der. shape function of the water phase*/  \
+    const Eigen::VectorXd RH = cellData.GetNodeValues(mDofTypeRH); /*discretized relative humidity*/                   \
+    const Eigen::MatrixXd Ng = cellIpData.GetNMatrix(mDofTypeRH); /*shape function of the gas phase*/                  \
+    const Eigen::MatrixXd Bg = cellIpData.GetBMatrixGradient(mDofTypeRH); /*der. shape function of the gas phase*/     \
+    const double wv = (Nw * WV)[0]; /*scalar water volume fraction*/                                                   \
+    const double wv_dt = 0.0; /*scalar water volume fraction velocity*/                                                \
+    const double rh = (Ng * RH)[0]; /*scalar relative humidity*/                                                       \
+    const double rh_dt = 0.0; /*scalar relative humidity velocity*/                                                    \
+    const double mec = TMeC::value(wv, rh, wv_dt, rh_dt); /*mass exchange coefficient*/                                \
+    const double wveq = TWVEq::value(wv, rh, wv_dt, rh_dt); /*equilibrium water volume fraction*/
+
+#define EXTRACTGRADIENTVARS                                                                                            \
+    EXTRACTCOMMONVARS                                                                                                  \
+    const double dcw = TDCw::value(wv, rh, wv_dt, rh_dt); /*diffusion coefficient of the water phase*/                 \
+    const double dcg = TDCg::value(wv, rh, wv_dt, rh_dt); /*diffusion coefficient of the gas phase*/
+
+#define EXTRACTSTIFFNESSVARS                                                                                           \
+    EXTRACTGRADIENTVARS                                                                                                \
+    const Eigen::MatrixXd Iw = Eigen::MatrixXd::Identity(WV.rows(), WV.rows()); /*identity matrix of the water phase*/ \
+    const Eigen::MatrixXd Ig = Eigen::MatrixXd::Identity(RH.rows(), RH.rows()); /*identity matrix of the gas phase*/   \
+    /*derivatives with the naming pattern VAR1_dVAR2*/                                                                 \
+    const double dcw_dwv = TDCw::d_WaterVolumeFraction(wv, rh, wv_dt, rh_dt);                                          \
+    const double dcw_drh = TDCw::d_RelativeHumidity(wv, rh, wv_dt, rh_dt);                                             \
+    const double dcg_dwv = TDCg::d_WaterVolumeFraction(wv, rh, wv_dt, rh_dt);                                          \
+    const double dcg_drh = TDCg::d_RelativeHumidity(wv, rh, wv_dt, rh_dt);                                             \
+    const double mec_dwv = TMeC::d_WaterVolumeFraction(wv, rh, wv_dt, rh_dt);                                          \
+    const double mec_drh = TMeC::d_RelativeHumidity(wv, rh, wv_dt, rh_dt);                                             \
+    const double wveq_dwv = TWVEq::d_WaterVolumeFraction(wv, rh, wv_dt, rh_dt);                                        \
+    const double wveq_drh = TWVEq::d_RelativeHumidity(wv, rh, wv_dt, rh_dt);
+
+#define EXTRACTDAMPINGVARS                                                                                             \
+    EXTRACTCOMMONVARS                                                                                                  \
+    const Eigen::MatrixXd GWV = Bw * WV; /*water volume graction gradient*/                                            \
+    const Eigen::MatrixXd GRH = Bg * RH; /*relative humidity gradient*/                                                \
+    /*derivatives with the naming pattern VAR1_dVAR2*/                                                                 \
+    const double dcw_dwv_dt = TDCw::d_WaterVolumeFraction_dt(wv, rh, wv_dt, rh_dt);                                    \
+    const double dcw_drh_dt = TDCw::d_RelativeHumidity_dt(wv, rh, wv_dt, rh_dt);                                       \
+    const double dcg_dwv_dt = TDCg::d_WaterVolumeFraction_dt(wv, rh, wv_dt, rh_dt);                                    \
+    const double dcg_drh_dt = TDCg::d_RelativeHumidity_dt(wv, rh, wv_dt, rh_dt);                                       \
+    const double mec_dwv_dt = TMeC::d_WaterVolumeFraction_dt(wv, rh, wv_dt, rh_dt);                                    \
+    const double mec_drh_dt = TMeC::d_RelativeHumidity_dt(wv, rh, wv_dt, rh_dt);                                       \
+    const double wveq_dwv_dt = TWVEq::d_WaterVolumeFraction_dt(wv, rh, wv_dt, rh_dt);                                  \
+    const double wveq_drh_dt = TWVEq::d_RelativeHumidity_dt(wv, rh, wv_dt, rh_dt);
+
+
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
 NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::MoistureTransport(DofType dofTypeRH,
                                                                                       DofType dofTypeWV, double rho_w,
@@ -20,23 +68,11 @@ NuTo::DofVector<double> NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TM
 {
     DofVector<double> gradient;
 
-    Eigen::VectorXd WV = cellData.GetNodeValues(mDofTypeWV);
-    Eigen::MatrixXd Nw = cellIpData.GetNMatrix(mDofTypeWV);
-    Eigen::MatrixXd Bw = cellIpData.GetBMatrixGradient(mDofTypeWV);
-    Eigen::VectorXd RH = cellData.GetNodeValues(mDofTypeRH);
-    Eigen::MatrixXd Ng = cellIpData.GetNMatrix(mDofTypeRH);
-    Eigen::MatrixXd Bg = cellIpData.GetBMatrixGradient(mDofTypeRH);
+    // variable meanings can be found in macro definition at the beginning of the file
+    EXTRACTGRADIENTVARS
 
-    double wv = (Nw * WV)[0];
-    double wv_dt = 0.0;
-    double rh = (Ng * RH)[0];
-    double rh_dt = 0.0;
-
-    double dcw = TDCw::value(wv, rh, wv_dt, rh_dt);
-    double dcg = TDCg::value(wv, rh, wv_dt, rh_dt);
-    double mec = TMeC::value(wv, rh, wv_dt, rh_dt);
-    double wveq = TWVEq::value(wv, rh, wv_dt, rh_dt);
-    double me = (wveq - wv) * mec;
+    // superpositions
+    const double me = (wveq - wv) * mec;
 
     // clang-format off
     gradient[mDofTypeWV] = -dcw * Bw.transpose() * Bw * WV
@@ -45,6 +81,8 @@ NuTo::DofVector<double> NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TM
     gradient[mDofTypeRH] = -dcg * Bg.transpose() * Bg * RH
                          + (mRho_g_sat * ((wv - mPV) * rh_dt + rh * wv_dt) - me) * Ng.transpose();
     // clang-format on
+
+
     return gradient;
 }
 
@@ -54,35 +92,8 @@ NuTo::DofMatrix<double> NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TM
 {
     NuTo::DofMatrix<double> stiffness;
 
-    Eigen::VectorXd WV = cellData.GetNodeValues(mDofTypeWV);
-    Eigen::MatrixXd Nw = cellIpData.GetNMatrix(mDofTypeWV);
-    Eigen::MatrixXd Bw = cellIpData.GetBMatrixGradient(mDofTypeWV);
-    Eigen::VectorXd RH = cellData.GetNodeValues(mDofTypeRH);
-    Eigen::MatrixXd Ng = cellIpData.GetNMatrix(mDofTypeRH);
-    Eigen::MatrixXd Bg = cellIpData.GetBMatrixGradient(mDofTypeRH);
-
-    double wv = (Nw * WV)[0];
-    double wv_dt = 0.0;
-    double rh = (Ng * RH)[0];
-    double rh_dt = 0.0;
-
-    double dcw = TDCw::value(wv, rh, wv_dt, rh_dt);
-    double dcg = TDCg::value(wv, rh, wv_dt, rh_dt);
-    double mec = TMeC::value(wv, rh, wv_dt, rh_dt);
-    double wveq = TWVEq::value(wv, rh, wv_dt, rh_dt);
-
-    int numDofsWV = WV.rows();
-    int numDofsRH = RH.rows();
-    Eigen::MatrixXd Iw = Eigen::MatrixXd::Identity(numDofsWV, numDofsWV);
-    Eigen::MatrixXd Ig = Eigen::MatrixXd::Identity(numDofsRH, numDofsRH);
-    double dcw_dwv = TDCw::d_WaterVolumeFraction(wv, rh, wv_dt, rh_dt);
-    double dcw_drh = TDCw::d_RelativeHumidity(wv, rh, wv_dt, rh_dt);
-    double dcg_dwv = TDCg::d_WaterVolumeFraction(wv, rh, wv_dt, rh_dt);
-    double dcg_drh = TDCg::d_RelativeHumidity(wv, rh, wv_dt, rh_dt);
-    double mec_dwv = TMeC::d_WaterVolumeFraction(wv, rh, wv_dt, rh_dt);
-    double mec_drh = TMeC::d_RelativeHumidity(wv, rh, wv_dt, rh_dt);
-    double wveq_dwv = TWVEq::d_WaterVolumeFraction(wv, rh, wv_dt, rh_dt);
-    double wveq_drh = TWVEq::d_RelativeHumidity(wv, rh, wv_dt, rh_dt);
+    // variable meanings can be found in macro definition at the beginning of the file
+    EXTRACTSTIFFNESSVARS
 
     // superpositions
     double supA = mec_dwv * (wveq - wv) + mec * wveq_dwv - mec;
@@ -102,6 +113,7 @@ NuTo::DofMatrix<double> NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TM
                                       +  Ng.transpose() * (-supB + mRho_g_sat * wv_dt) * Ng;
     // clang-format on
 
+
     return stiffness;
 }
 
@@ -111,22 +123,33 @@ NuTo::DofMatrix<double> NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TM
 {
     NuTo::DofMatrix<double> damping;
 
-    Eigen::VectorXd WV = cellData.GetNodeValues(mDofTypeWV);
-    Eigen::MatrixXd Nw = cellIpData.GetNMatrix(mDofTypeWV);
-    Eigen::MatrixXd Bw = cellIpData.GetBMatrixGradient(mDofTypeWV);
-    Eigen::VectorXd RH = cellData.GetNodeValues(mDofTypeRH);
-    Eigen::MatrixXd Ng = cellIpData.GetNMatrix(mDofTypeRH);
-    Eigen::MatrixXd Bg = cellIpData.GetBMatrixGradient(mDofTypeRH);
+    // variable meanings can be found in macro definition at the beginning of the file
+    EXTRACTDAMPINGVARS
 
-    damping(mDofTypeWV, mDofTypeWV) = -Bw.transpose() * Bw;
-    damping(mDofTypeWV, mDofTypeRH) = -Bw.transpose() * Bg;
-    damping(mDofTypeRH, mDofTypeWV) = -Bg.transpose() * Bw;
-    damping(mDofTypeRH, mDofTypeRH) = -Bg.transpose() * Bg;
+    // superpositions
+    const double supA = mec_dwv_dt * (wveq - wv) + mec * wveq_dwv_dt;
+    const double supB = mec_drh_dt * (wveq - wv) + mec * wveq_drh_dt;
+
+    // clang-format off
+    damping(mDofTypeWV, mDofTypeWV) = -dcw_dwv_dt * Bw.transpose() * GWV * Nw
+                                    + Nw.transpose() * (supA - mRho_w) * Nw;
+
+    damping(mDofTypeWV, mDofTypeRH) = -dcw_drh_dt * Bw.transpose() * GWV * Ng
+                                    + Nw.transpose() * supB * Ng;
+
+    damping(mDofTypeRH, mDofTypeWV) = -dcg_dwv_dt * Bg.transpose() * GRH * Nw
+                                    + Ng.transpose() * (mRho_g_sat * rh - supA) * Nw;
+
+    damping(mDofTypeRH, mDofTypeRH) = -dcg_drh_dt * Bg.transpose() * GRH * Ng
+                                    + Ng.transpose() * (mRho_g_sat * (wv - mPV) - supB) * Ng;
+    // clang-format on
+
 
     return damping;
 }
 
 
-// template class NuTo::Integrands::MoistureTransport<1>;
-// template class NuTo::Integrands::MoistureTransport<2>;
-// template class NuTo::Integrands::MoistureTransport<3>;
+#undef EXTRACTDAMPINGVARS
+#undef EXTRACTSTIFFNESSVARS
+#undef EXTRACTGRADIENTVARS
+#undef EXTRACTCOMMONVARS
