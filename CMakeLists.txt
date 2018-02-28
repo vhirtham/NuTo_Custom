@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.9)
 project(NuToApps)
 
 FIND_PACKAGE(Boost REQUIRED unit_test_framework)
-find_package(Eigen3)
 
 find_path(EIGEN_INCLUDE_DIR NAMES Eigen/Core PATH_SUFFIXES eigen3)
 include_directories(${EIGEN_INCLUDE_DIR})

@@ -23,11 +23,11 @@ public:
     MoistureTransport(DofType dofTypeRH, DofType dofTypeWV, double rho_w, double rho_g_sat, double PV);
 
 
-    DofVector<double> Gradient(const CellData& cellData, const CellIpData& cellIpData, double deltaT);
+    DofVector<double> Gradient(const CellIpData& cellIpData, double deltaT);
 
-    DofMatrix<double> Stiffness(const CellData& cellData, const CellIpData& cellIpData, double deltaT);
+    DofMatrix<double> Stiffness(const CellIpData& cellIpData, double deltaT);
 
-    DofMatrix<double> Damping(const CellData& cellData, const CellIpData& cellIpData, double deltaT);
+    DofMatrix<double> Damping(const CellIpData& cellIpData, double deltaT);
 };
 }
 }
