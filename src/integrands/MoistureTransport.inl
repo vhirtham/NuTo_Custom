@@ -10,9 +10,9 @@
     const Eigen::MatrixXd Ng = cellIpData.N(mDofTypeRH); /*shape function of the gas phase*/                           \
     const Eigen::MatrixXd Bg = cellIpData.B(mDofTypeRH, Nabla::Gradient()); /* deriv. shape func. of the gas phase*/   \
     const double wv = (Nw * WV)[0]; /*scalar water volume fraction*/                                                   \
-    const double wv_dt = 0.0; /*scalar water volume fraction velocity*/                                                \
+    const double wv_dt = (Nw * cellIpData.NodeValueVector(mDofTypeWV_dt))[0]; /*scalar water volume fraction vel.*/    \
     const double rh = (Ng * RH)[0]; /*scalar relative humidity*/                                                       \
-    const double rh_dt = 0.0; /*scalar relative humidity velocity*/                                                    \
+    const double rh_dt = (Ng * cellIpData.NodeValueVector(mDofTypeRH_dt))[0]; /*scalar relative humidity vel.*/        \
     const double mec = TMeC::value(wv, rh, wv_dt, rh_dt); /*mass exchange coefficient*/                                \
     const double wveq = TWVEq::value(wv, rh, wv_dt, rh_dt); /*equilibrium water volume fraction*/
 
@@ -51,11 +51,13 @@
 
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::MoistureTransport(DofType dofTypeRH,
-                                                                                      DofType dofTypeWV, double rho_w,
-                                                                                      double rho_g_sat, double PV)
-    : mDofTypeRH(dofTypeRH)
-    , mDofTypeWV(dofTypeWV)
+NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::MoistureTransport(
+        DofType dofTypeWV, DofType dofTypeRH, DofType dofTypeWV_dt, DofType dofTypeRH_dt, double rho_w,
+        double rho_g_sat, double PV)
+    : mDofTypeWV(dofTypeWV)
+    , mDofTypeRH(dofTypeRH)
+    , mDofTypeWV_dt(dofTypeWV_dt)
+    , mDofTypeRH_dt(dofTypeRH_dt)
     , mRho_w(rho_w)
     , mRho_g_sat(rho_g_sat)
     , mPV(PV)
@@ -71,6 +73,7 @@ NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::Gradient(con
 
     // variable meanings can be found in macro definition at the beginning of the file
     EXTRACTGRADIENTVARS
+    CheckValuesValid(cellIpData);
 
     // superpositions
     const double me = (wveq - wv) * mec;
@@ -96,6 +99,7 @@ NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::Stiffness(co
 
     // variable meanings can be found in macro definition at the beginning of the file
     EXTRACTSTIFFNESSVARS
+    CheckValuesValid(cellIpData);
 
     // superpositions
     double supA = mec_dwv * (wveq - wv) + mec * wveq_dwv - mec;
@@ -128,7 +132,7 @@ NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::Damping(cons
 
     // variable meanings can be found in macro definition at the beginning of the file
     EXTRACTDAMPINGVARS
-
+    CheckValuesValid(cellIpData);
     // superpositions
     const double supA = mec_dwv_dt * (wveq - wv) + mec * wveq_dwv_dt;
     const double supB = mec_drh_dt * (wveq - wv) + mec * wveq_drh_dt;
@@ -149,6 +153,19 @@ NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::Damping(cons
 
 
     return damping;
+}
+
+template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
+void NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::CheckValuesValid(
+        const NuTo::CellIpData& cellIpData)
+{
+#ifndef NDEBUG
+    EXTRACTSHAREDVARS
+    if (std::abs(mPV - wv) < 10e-9)
+        throw Exception(
+                __PRETTY_FUNCTION__,
+                "Poresvolume is completly occupied by water. Gas transport equation will produce undefined behaviour!");
+#endif
 }
 
 
