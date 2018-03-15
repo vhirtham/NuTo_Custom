@@ -32,7 +32,7 @@ public:
 
     DofMatrix<double> Damping(const CellIpData& cellIpData, double deltaT);
 
-    void CheckValuesValid(const CellIpData& cellIpData);
+    void CheckValuesValid(double wv);
 };
 }
 }

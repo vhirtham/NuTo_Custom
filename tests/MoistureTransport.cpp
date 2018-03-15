@@ -1,6 +1,7 @@
 #include <boost/test/unit_test.hpp>
 
-#include <chrono>
+//#define PLOT_RESULTS
+
 #include <iostream>
 #include <thread>
 
@@ -10,10 +11,13 @@
 
 // NuToCustom includes
 #include "MoistureTransport.h"
-#include "tools/GNUPlot.h"
 #include "integrands/MoistureTransportCoefficients.h"
 
+#ifdef PLOT_RESULTS
+#include "tools/GNUPlot.h"
+#include <chrono>
 using namespace std::chrono_literals;
+#endif
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
 void IntegrationTest(int numElements, double delta_t, double t_final, double lWV, double rWV, double lRH, double rRH)
@@ -50,9 +54,9 @@ void IntegrationTest(int numElements, double delta_t, double t_final, double lWV
 
     EigenSparseSolver solver("EigenSparseLU");
     Eigen::VectorXd delta_d = Eigen::VectorXd::Zero(d.rows());
-
+#ifdef PLOT_RESULTS
     GNUPlot plot;
-
+#endif
     double t = 0.;
     while (t < t_final)
     {
@@ -96,7 +100,7 @@ void IntegrationTest(int numElements, double delta_t, double t_final, double lWV
         d = d_it;
         v = v_it;
         a = a_it;
-
+#ifdef PLOT_RESULTS
         // Plotting
         yWV = d.head(numDofsWV);
         yRH = d.tail(numDofsWV);
@@ -106,22 +110,37 @@ void IntegrationTest(int numElements, double delta_t, double t_final, double lWV
         plot.AddPlot(xWV, yWV, {0, 255, 0}, eLineType::LINES, "water Volume fraction");
         plot.Show();
         std::this_thread::sleep_for(20ms);
+#endif
     }
 }
 
+//! @brief Checks if the submatrices and subvectors for the two phase system are sized correctly for different
+//! interpolation types.
+BOOST_AUTO_TEST_CASE(InterpolationCombinations)
+{
+    for (int i = 1; i < 4; ++i)
+        for (int j = 1; j < 4; ++j)
+        {
+            MoistureTransportTest<1, MTCConst<1>, MTCConst<0>, MTCConst<1>, MTCConst<2, -1>> MTT;
+            MTT.CreateUnitMesh(1, InterpolationTrussLobatto(i), InterpolationTrussLobatto(j));
+            MTT.Gradient();
+            MTT.Stiffness();
+            MTT.Damping();
+        }
+}
 
-// BOOST_AUTO_TEST_CASE(InterpolationCombinations)
-//{
-//    for (int i = 1; i < 4; ++i)
-//        for (int j = 1; j < 4; ++j)
-//        {
-//            MoistureTransportTest<1, MTCConst<1>, MTCConst<0>, MTCConst<1>, MTCConst<2, -1>> MTT;
-//            MTT.CreateUnitMesh(1, InterpolationTrussLobatto(i), InterpolationTrussLobatto(j));
-//            MTT.Gradient();
-//            MTT.Stiffness();
-//            MTT.Damping();
-//        }
-//}
+
+//! @brief This test checks if an exception is thrown when the water volume fraction equals the pore volume fraction.
+//! This is important because in this case there is no volume left for the gas phase which will lead to undefined
+//! behaviour of the gas phase transport equation.
+BOOST_AUTO_TEST_CASE(PoresCompletlyFilledWithWater)
+{
+    MoistureTransportTest<1, MTCConst<1>, MTCConst<0>, MTCConst<1>, MTCConst<2, -1>> MTT(1, 1, 0.2);
+    MTT.CreateUnitMesh(1, InterpolationTrussLobatto(1), InterpolationTrussLobatto(1));
+    BOOST_CHECK_THROW(MTT.Gradient(), Exception);
+    BOOST_CHECK_THROW(MTT.Stiffness(), Exception);
+    BOOST_CHECK_THROW(MTT.Damping(), Exception);
+}
 
 BOOST_AUTO_TEST_CASE(Integrationtest)
 {

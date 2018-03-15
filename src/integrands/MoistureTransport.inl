@@ -73,7 +73,7 @@ NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::Gradient(con
 
     // variable meanings can be found in macro definition at the beginning of the file
     EXTRACTGRADIENTVARS
-    CheckValuesValid(cellIpData);
+    CheckValuesValid(wv);
 
     // superpositions
     const double me = (wveq - wv) * mec;
@@ -99,7 +99,7 @@ NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::Stiffness(co
 
     // variable meanings can be found in macro definition at the beginning of the file
     EXTRACTSTIFFNESSVARS
-    CheckValuesValid(cellIpData);
+    CheckValuesValid(wv);
 
     // superpositions
     double supA = mec_dwv * (wveq - wv) + mec * wveq_dwv - mec;
@@ -132,7 +132,7 @@ NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::Damping(cons
 
     // variable meanings can be found in macro definition at the beginning of the file
     EXTRACTDAMPINGVARS
-    CheckValuesValid(cellIpData);
+    CheckValuesValid(wv);
     // superpositions
     const double supA = mec_dwv_dt * (wveq - wv) + mec * wveq_dwv_dt;
     const double supB = mec_drh_dt * (wveq - wv) + mec * wveq_drh_dt;
@@ -157,15 +157,12 @@ NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::Damping(cons
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
 void NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::CheckValuesValid(
-        const NuTo::CellIpData& cellIpData)
+        double wv)
 {
-#ifndef NDEBUG
-    EXTRACTSHAREDVARS
     if (std::abs(mPV - wv) < 10e-9)
         throw Exception(
                 __PRETTY_FUNCTION__,
                 "Poresvolume is completly occupied by water. Gas transport equation will produce undefined behaviour!");
-#endif
 }
 
 
