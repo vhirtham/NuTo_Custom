@@ -26,17 +26,18 @@ before_install:
 script:
     # - We log in /home/nuto (set as WORKDIR in Dockerfile). This will be our build directory avoid changing directories.
     # - The source code from travis is 'mounted' as /home/nuto/source via the -v option in the docker run command above
-    - docker exec dock cmake -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_CXX_FLAGS="$COVERAGE $WERROR" ../source
+    #- docker exec dock cmake -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_CXX_FLAGS="$COVERAGE $WERROR" ../source
     #- docker exec dock make -j2 integrationtests
     #- docker exec dock ctest -R "^integration" --output-on-failure
     #- if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock bash -c "cd ../source && scripts/upload_coverage.sh integrationtests"; fi
-    - if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock lcov --no-external --capture --initial --directory . --output-file coverage.info; fi
-    - docker exec dock make -j2
-    - docker exec dock ctest
+    #- if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock lcov --no-external --capture --initial --directory build --output-file coverage.info; fi
+    #- docker exec dock make -j2
+    #- docker exec dock ctest
     - docker exec dock ls
-    - if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock lcov --directory . --capture --output-file coverage.info; fi
+    - docker exec dock bash -c 'cd /'
+    - docker exec dock ls
+    - if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock lcov --directory build --capture --output-file coverage.info; fi
     - if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock lcov --remove coverage.info 'usr/*' --output-file coverage.info; fi
-    - if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock lcov --remove coverage.info '*include/nuto/*' --output-file coverage.info; fi
-    - if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock lcov --remove coverage.info '*NuTo-build*/' --output-file coverage.info; fi
+    - if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock lcov --remove coverage.info 'nuto/*' --output-file coverage.info; fi
     - if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock bash -c "bash <(curl -s https://codecov.io/bash)" -F coverage.info; fi
     #- docker exec dock bash ../source/scripts/check_install.sh
