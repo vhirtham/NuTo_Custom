@@ -30,6 +30,7 @@ script:
     #- docker exec dock make -j2 integrationtests
     #- docker exec dock ctest -R "^integration" --output-on-failure
     #- if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock bash -c "cd ../source && scripts/upload_coverage.sh integrationtests"; fi
+    - if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock lcov --no-external --capture --initial --directory . --output-file coverage.info; fi
     - docker exec dock make -j2
     - docker exec dock ctest
     - if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock lcov --directory . --capture --output-file coverage.info; fi
