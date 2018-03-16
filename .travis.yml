@@ -33,7 +33,7 @@ script:
     - docker exec dock make -j2
     - docker exec dock ctest
     - if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock lcov --directory . --capture --output-file coverage.info; fi
-    - if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock lcov --remove coverage.info 'usr/*' --output-file coverage.info; fi
-    - if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock lcov --remove coverage.info 'include/nuto/*' --output-file coverage.info; fi
+    #- if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock lcov --remove coverage.info 'usr/*' --output-file coverage.info; fi
+    - if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock lcov --remove coverage.info '*include/nuto/*' --output-file coverage.info; fi
     - if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock bash -c "bash <(curl -s https://codecov.io/bash)"; fi
     #- docker exec dock bash ../source/scripts/check_install.sh
