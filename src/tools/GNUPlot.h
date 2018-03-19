@@ -27,10 +27,10 @@ public:
     GNUPlot& operator=(const GNUPlot&) = delete;
     GNUPlot& operator=(GNUPlot&&) = delete;
 
-    void AddPlot(Eigen::VectorXd x, Eigen::VectorXd y, std::array<unsigned char, 3> lineColor = {0, 0, 0},
+    void AddPlot(Eigen::VectorXd x, Eigen::VectorXd y, std::array<unsigned char, 3> lineColor = {{0, 0, 0}},
                  eLineType lineType = eLineType::LINES, std::string title = "");
 
-    void AddPlot(std::vector<double> x, std::vector<double> y, std::array<unsigned char, 3> lineColor = {0, 0, 0},
+    void AddPlot(std::vector<double> x, std::vector<double> y, std::array<unsigned char, 3> lineColor = {{0, 0, 0}},
                  eLineType lineType = eLineType::LINES, std::string title = "");
 
     void Show() const;

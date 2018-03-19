@@ -94,8 +94,6 @@ void IntegrationTest(int numElements, double delta_t, double t_final, double lWV
             MTT.MergeDofs(d_it, v_it, a_it);
 
             grad = ToEigen(MTT.Gradient().J, MTT.GetDofs());
-            auto norm = grad.lpNorm<Eigen::Infinity>();
-            int ab = 0;
         }
         d = d_it;
         v = v_it;

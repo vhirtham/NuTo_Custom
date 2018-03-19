@@ -5,8 +5,8 @@ dist: trusty
 
 matrix:
     include:
-       # - compiler: clang
-       #   env: BUILD_TYPE=Release
+        - compiler: clang
+          env: BUILD_TYPE=Release
         - compiler: g++
           env: BUILD_TYPE=Release
         - compiler: g++
