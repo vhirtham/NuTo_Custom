@@ -28,6 +28,6 @@ script:
     - docker exec dock ctest
     - if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock lcov --directory . --capture --output-file ../source/coverage.info; fi
     - if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock lcov --remove ../source/coverage.info 'usr/*' --output-file ../source/coverage.info; fi
-    - if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock lcov --remove ../source/coverage.info 'nuto/*' --output-file ../source/coverage.info; fi
+    - if [[ "$COVERAGE" == "--coverage" ]]; then docker exec dock lcov --remove ../source/coverage.info '*/tests/*' --output-file ../source/coverage.info; fi
     - if [[ "$COVERAGE" == "--coverage" ]]; then bash <(curl -s https://codecov.io/bash); fi
     #- docker exec dock bash ../source/scripts/check_install.sh
