@@ -121,7 +121,7 @@ BOOST_AUTO_TEST_CASE(InterpolationCombinations)
     for (int i = 1; i < 4; ++i)
         for (int j = 1; j < 4; ++j)
         {
-            MoistureTransportTest<1, MTCConst<1>, MTCConst<0>, MTCConst<1>, MTCConst<2, -1>> MTT;
+            MoistureTransportTest<1, MTCConst<1>, MTCConst<0>, MTCConst<1>, MTCConst<2, 10>> MTT;
             MTT.CreateUnitMesh(1, InterpolationTrussLobatto(i), InterpolationTrussLobatto(j));
             MTT.Gradient();
             MTT.Stiffness();
@@ -135,7 +135,7 @@ BOOST_AUTO_TEST_CASE(InterpolationCombinations)
 //! behaviour of the gas phase transport equation.
 BOOST_AUTO_TEST_CASE(PoresCompletlyFilledWithWater)
 {
-    MoistureTransportTest<1, MTCConst<1>, MTCConst<0>, MTCConst<1>, MTCConst<2, -1>> MTT(1, 1, 0.2);
+    MoistureTransportTest<1, MTCConst<1>, MTCConst<0>, MTCConst<1>, MTCConst<2, 10>> MTT(1, 1, 0.2);
     MTT.CreateUnitMesh(1, InterpolationTrussLobatto(1), InterpolationTrussLobatto(1));
     BOOST_CHECK_THROW(MTT.Gradient(), Exception);
     BOOST_CHECK_THROW(MTT.Stiffness(), Exception);
@@ -144,6 +144,6 @@ BOOST_AUTO_TEST_CASE(PoresCompletlyFilledWithWater)
 
 BOOST_AUTO_TEST_CASE(Integrationtest)
 {
-    IntegrationTest<1, MTCConst<4>, MTCConst<2, -1>, MTCConst<20>, MTCConst<1, -1>>(10, 0.0001, 0.05, 0.01, 0.19, 1.0,
+    IntegrationTest<1, MTCConst<4>, MTCConst<2, 10>, MTCConst<20>, MTCConst<1, 10>>(10, 0.0001, 0.05, 0.01, 0.19, 1.0,
                                                                                     0.05);
 }
