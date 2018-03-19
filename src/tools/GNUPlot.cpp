@@ -1,6 +1,6 @@
 #include "GNUPlot.h"
 
-#include "base/Exception.h"
+#include "nuto/base/Exception.h"
 #include "PlotData.h"
 
 #include <iostream>

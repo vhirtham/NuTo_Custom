@@ -10,7 +10,7 @@ FIND_PACKAGE(Boost REQUIRED unit_test_framework)
 
 find_path(EIGEN_INCLUDE_DIR NAMES Eigen/Core PATH_SUFFIXES eigen3)
 include_directories(${EIGEN_INCLUDE_DIR})
-include_directories("nuto/src")
+include_directories("nuto")
 
 
 include(ExternalProject)

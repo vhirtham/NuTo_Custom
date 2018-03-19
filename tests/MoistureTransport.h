@@ -1,16 +1,16 @@
 #pragma once
 
 // NuTo includes
-#include "mechanics/cell/SimpleAssembler.h"
-#include "mechanics/cell/Cell.h"
-#include "mechanics/cell/CellInterface.h"
-#include "mechanics/dofs/DofNumbering.h"
-#include "mechanics/dofs/DofVectorConvertEigen.h"
-#include "mechanics/integrationtypes/IntegrationTypeTensorProduct.h"
-#include "mechanics/interpolation/InterpolationTrussLobatto.h"
-#include "mechanics/mesh/MeshFemDofConvert.h"
-#include "mechanics/mesh/UnitMeshFem.h"
-#include "mechanics/tools/NodalValueMerger.h"
+#include "nuto/mechanics/cell/SimpleAssembler.h"
+#include "nuto/mechanics/cell/Cell.h"
+#include "nuto/mechanics/cell/CellInterface.h"
+#include "nuto/mechanics/dofs/DofNumbering.h"
+#include "nuto/mechanics/dofs/DofVectorConvertEigen.h"
+#include "nuto/mechanics/integrationtypes/IntegrationTypeTensorProduct.h"
+#include "nuto/mechanics/interpolation/InterpolationTrussLobatto.h"
+#include "nuto/mechanics/mesh/MeshFemDofConvert.h"
+#include "nuto/mechanics/mesh/UnitMeshFem.h"
+#include "nuto/mechanics/tools/NodalValueMerger.h"
 
 // NuToCustom includes
 #include "integrands/MoistureTransport.h"

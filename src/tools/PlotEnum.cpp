@@ -1,6 +1,6 @@
 #include "PlotEnum.h"
 
-#include "base/Exception.h"
+#include "nuto/base/Exception.h"
 #include <algorithm>
 
 const std::map<NuTo::eLineType, std::string> NuTo::GetLineTypeMap()

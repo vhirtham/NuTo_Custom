@@ -5,8 +5,8 @@
 #include <iostream>
 #include <thread>
 
-#include "math/EigenSparseSolve.h"
-#include "mechanics/dofs/DofMatrixSparseConvertEigen.h"
+#include "nuto/math/EigenSparseSolve.h"
+#include "nuto/mechanics/dofs/DofMatrixSparseConvertEigen.h"
 
 
 // NuToCustom includes
