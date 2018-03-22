@@ -14,16 +14,13 @@ class MoistureTransport
 {
     DofType mDofTypeWV;
     DofType mDofTypeRH;
-    DofType mDofTypeWV_dt;
-    DofType mDofTypeRH_dt;
     double mRho_w;
     double mRho_g_sat;
     double mPV;
 
 public:
     //! @brief ctor
-    MoistureTransport(DofType dofTypeWV, DofType dofTypeRH, DofType dofTypeWV_dt, DofType dofTypeRH_dt, double rho_w,
-                      double rho_g_sat, double PV);
+    MoistureTransport(DofType dofTypeWV, DofType dofTypeRH, double rho_w, double rho_g_sat, double PV);
 
 
     DofVector<double> Gradient(const CellIpData& cellIpData, double deltaT);

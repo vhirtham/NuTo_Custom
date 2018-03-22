@@ -38,10 +38,10 @@ public:
     GlobalDofMatrixSparse Damping();
 
 
-    GlobalDofVector CreateDofVector(int dt = 0);
-    void GetDofVector(GlobalDofVector& dofs);
+    GlobalDofVector CreateDofVector();
+    void GetDofVector(GlobalDofVector& dofs, int instance = 0);
     std::tuple<Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd> ExtractDofs();
-    void MergeDofVector(GlobalDofVector& dofs);
+    void MergeDofVector(GlobalDofVector& dofs, int instance = 0);
     void MergeDofs(Eigen::VectorXd d, Eigen::VectorXd v, Eigen::VectorXd a);
 
     std::vector<DofType> GetDofs()
@@ -49,15 +49,6 @@ public:
         return {dofWV, dofRH};
     }
 
-    std::vector<DofType> GetDofs_dt1()
-    {
-        return {dofWV_dt1, dofRH_dt1};
-    }
-
-    std::vector<DofType> GetDofs_dt2()
-    {
-        return {dofWV_dt2, dofRH_dt2};
-    }
 
     MeshFem& GetMesh() &
     {
@@ -75,10 +66,6 @@ private:
     // members
     DofType dofRH = {"relativeHumidity", 1};
     DofType dofWV = {"waterVolumeFraction", 1};
-    DofType dofRH_dt1 = {"relativeHumidity_dt1", 1};
-    DofType dofWV_dt1 = {"waterVolumeFraction_dt1", 1};
-    DofType dofRH_dt2 = {"relativeHumidity_dt2", 1};
-    DofType dofWV_dt2 = {"waterVolumeFraction_dt2", 1};
     DofInfo dofInfo;
     Constraint::Constraints constraints;
     MeshFem mMesh;
@@ -91,7 +78,7 @@ private:
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
 MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::MoistureTransportTest(double rho_w, double rho_g_sat, double PV)
-    : integrandMoistureTransport(dofWV, dofRH, dofWV_dt1, dofRH_dt1, rho_w, rho_g_sat, PV)
+    : integrandMoistureTransport(dofWV, dofRH, rho_w, rho_g_sat, PV)
 {
 }
 
@@ -106,32 +93,28 @@ void MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::CreateUnitMesh(int nu
     const auto& interpolationRH = mMesh.CreateInterpolation(interpolationRHArg);
     AddDofInterpolation(&mMesh, dofWV, interpolationWV);
     AddDofInterpolation(&mMesh, dofRH, interpolationRH);
-    AddDofInterpolation(&mMesh, dofWV_dt1, interpolationWV);
-    AddDofInterpolation(&mMesh, dofRH_dt1, interpolationRH);
-    AddDofInterpolation(&mMesh, dofWV_dt2, interpolationWV);
-    AddDofInterpolation(&mMesh, dofRH_dt2, interpolationRH);
+
+    mMesh.AllocateDofInstances(dofWV, 3);
+    mMesh.AllocateDofInstances(dofRH, 3);
 
     // dof numbering
     dofInfo = DofNumbering::Build(mMesh.NodesTotal(dofWV), dofWV, constraints);
     dofInfo.Merge(dofRH, DofNumbering::Build(mMesh.NodesTotal(dofRH), dofRH, constraints));
-    dofInfo.Merge(dofWV_dt1, DofNumbering::Build(mMesh.NodesTotal(dofWV_dt1), dofWV_dt1, constraints));
-    dofInfo.Merge(dofRH_dt1, DofNumbering::Build(mMesh.NodesTotal(dofRH_dt1), dofRH_dt1, constraints));
-    dofInfo.Merge(dofWV_dt2, DofNumbering::Build(mMesh.NodesTotal(dofWV_dt2), dofWV_dt2, constraints));
-    dofInfo.Merge(dofRH_dt2, DofNumbering::Build(mMesh.NodesTotal(dofRH_dt2), dofRH_dt2, constraints));
 
     // set nodal values to 100% RH and equilibium state
     for (NodeSimple& node : mMesh.NodesTotal(dofWV))
+    {
         node.SetValue(0, TWVEq::value(0., 1., 0., 0.));
+        node.SetValue(0, 0., 1);
+        node.SetValue(0, 0., 2);
+    }
     for (NodeSimple& node : mMesh.NodesTotal(dofRH))
-        node.SetValue(0, 1.0);
-    for (NodeSimple& node : mMesh.NodesTotal(dofWV_dt1))
-        node.SetValue(0, 0.0);
-    for (NodeSimple& node : mMesh.NodesTotal(dofRH_dt1))
-        node.SetValue(0, 0.0);
-    for (NodeSimple& node : mMesh.NodesTotal(dofWV_dt2))
-        node.SetValue(0, 0.0);
-    for (NodeSimple& node : mMesh.NodesTotal(dofRH_dt2))
-        node.SetValue(0, 0.0);
+    {
+        node.SetValue(0, 1.);
+        node.SetValue(0, 0., 1);
+        node.SetValue(0, 0., 2);
+    }
+
 
     // create cells
     int cellId = 0;
@@ -171,7 +154,7 @@ GlobalDofMatrixSparse MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::Damp
 }
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-GlobalDofVector MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::CreateDofVector(int dt)
+GlobalDofVector MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::CreateDofVector()
 {
     GlobalDofVector d;
     int nDofWV = (mMesh.NodesTotal(dofWV)).Size();
@@ -179,67 +162,51 @@ GlobalDofVector MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::CreateDofV
     int nDofRH = (mMesh.NodesTotal(dofRH)).Size();
     int nDofRH_dep = constraints.GetNumEquations(dofRH);
 
-    if (dt == 0)
-    {
-        d.J[dofWV] = Eigen::VectorXd(nDofWV - nDofWV_dep);
-        d.K[dofWV] = Eigen::VectorXd(nDofWV_dep);
-        d.J[dofRH] = Eigen::VectorXd(nDofRH - nDofRH_dep);
-        d.K[dofRH] = Eigen::VectorXd(nDofRH_dep);
-    }
-    if (dt == 1)
-    {
-        d.J[dofWV_dt1] = Eigen::VectorXd(nDofWV - nDofWV_dep);
-        d.K[dofWV_dt1] = Eigen::VectorXd(nDofWV_dep);
-        d.J[dofRH_dt1] = Eigen::VectorXd(nDofRH - nDofRH_dep);
-        d.K[dofRH_dt1] = Eigen::VectorXd(nDofRH_dep);
-    }
-    if (dt == 2)
-    {
-        d.J[dofWV_dt2] = Eigen::VectorXd(nDofWV - nDofWV_dep);
-        d.K[dofWV_dt2] = Eigen::VectorXd(nDofWV_dep);
-        d.J[dofRH_dt2] = Eigen::VectorXd(nDofRH - nDofRH_dep);
-        d.K[dofRH_dt2] = Eigen::VectorXd(nDofRH_dep);
-    }
+    d.J[dofWV] = Eigen::VectorXd(nDofWV - nDofWV_dep);
+    d.K[dofWV] = Eigen::VectorXd(nDofWV_dep);
+    d.J[dofRH] = Eigen::VectorXd(nDofRH - nDofRH_dep);
+    d.K[dofRH] = Eigen::VectorXd(nDofRH_dep);
+
     return d;
 }
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-void MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::GetDofVector(GlobalDofVector& dofs)
+void MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::GetDofVector(GlobalDofVector& dofs, int instance)
 {
     CheckDofNumbering();
     NodalValueMerger Merger(&mMesh);
-    Merger.Extract(&dofs, dofs.J.DofTypes());
+    Merger.Extract(&dofs, dofs.J.DofTypes(), instance);
 }
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
 std::tuple<Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd>
 MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::ExtractDofs()
 {
-    GlobalDofVector dg{CreateDofVector()}, vg{CreateDofVector(1)}, ag{CreateDofVector(2)};
+    GlobalDofVector dg{CreateDofVector()}, vg{CreateDofVector()}, ag{CreateDofVector()};
     GetDofVector(dg);
-    GetDofVector(vg);
-    GetDofVector(ag);
+    GetDofVector(vg, 1);
+    GetDofVector(ag, 2);
     return std::tuple<Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd>(
-            ToEigen(dg.J, GetDofs()), ToEigen(vg.J, GetDofs_dt1()), ToEigen(ag.J, GetDofs_dt2()));
+            ToEigen(dg.J, GetDofs()), ToEigen(vg.J, GetDofs()), ToEigen(ag.J, GetDofs()));
 }
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-void MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::MergeDofVector(GlobalDofVector& dofs)
+void MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::MergeDofVector(GlobalDofVector& dofs, int instance)
 {
     CheckDofNumbering();
     NodalValueMerger Merger(&mMesh);
-    Merger.Merge(dofs, dofs.J.DofTypes());
+    Merger.Merge(dofs, dofs.J.DofTypes(), instance);
 }
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
 void MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::MergeDofs(Eigen::VectorXd d, Eigen::VectorXd v,
                                                                      Eigen::VectorXd a)
 {
-    GlobalDofVector dg{CreateDofVector()}, vg{CreateDofVector(1)}, ag{CreateDofVector(2)};
+    GlobalDofVector dg{CreateDofVector()}, vg{CreateDofVector()}, ag{CreateDofVector()};
     FromEigen(d, GetDofs(), &dg.J);
-    FromEigen(v, GetDofs_dt1(), &vg.J);
-    FromEigen(a, GetDofs_dt2(), &ag.J);
+    FromEigen(v, GetDofs(), &vg.J);
+    FromEigen(a, GetDofs(), &ag.J);
     MergeDofVector(dg);
-    MergeDofVector(vg);
-    MergeDofVector(ag);
+    MergeDofVector(vg, 1);
+    MergeDofVector(ag, 2);
 }

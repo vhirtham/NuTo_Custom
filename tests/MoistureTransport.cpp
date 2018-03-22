@@ -1,6 +1,6 @@
 #include <boost/test/unit_test.hpp>
 
-//#define PLOT_RESULTS
+#define PLOT_RESULTS
 
 #include <iostream>
 #include <thread>
