@@ -14,6 +14,7 @@
 
 // NuToCustom includes
 #include "integrands/MoistureTransport.h"
+#include "integrands/MoistureTransportBoundary.h"
 
 // Other includes
 #include <boost/ptr_container/ptr_vector.hpp>

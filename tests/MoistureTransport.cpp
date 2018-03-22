@@ -1,6 +1,6 @@
 #include <boost/test/unit_test.hpp>
 
-#define PLOT_RESULTS
+//#define PLOT_RESULTS
 
 #include <iostream>
 #include <thread>
@@ -104,8 +104,8 @@ void IntegrationTest(int numElements, double delta_t, double t_final, double lWV
         yRH = d.tail(numDofsWV);
         plot.Clear();
         plot.AddPlot(std::vector<double>{0, 0}, std::vector<double>{0.0, 1});
-        plot.AddPlot(xRH, yRH, {255, 0, 0}, eLineType::LINES, "relative humidity");
-        plot.AddPlot(xWV, yWV, {0, 255, 0}, eLineType::LINES, "water Volume fraction");
+        plot.AddPlot(xRH, yRH, {{255, 0, 0}}, eLineType::LINES, "relative humidity");
+        plot.AddPlot(xWV, yWV, {{0, 255, 0}}, eLineType::LINES, "water Volume fraction");
         plot.Show();
         std::this_thread::sleep_for(20ms);
 #endif
