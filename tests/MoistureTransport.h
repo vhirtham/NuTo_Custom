@@ -11,6 +11,7 @@
 #include "nuto/mechanics/mesh/MeshFemDofConvert.h"
 #include "nuto/mechanics/mesh/UnitMeshFem.h"
 #include "nuto/mechanics/tools/NodalValueMerger.h"
+#include "nuto/math/shapes/Pyramid.h"
 
 // NuToCustom includes
 #include "integrands/MoistureTransport.h"
@@ -23,6 +24,127 @@ using namespace NuTo;
 using namespace NuTo::Integrands;
 using namespace std::placeholders;
 
+
+namespace NuTo
+{
+class InterpolationPoint : public InterpolationSimple
+{
+    Pyramid mShape;
+
+public:
+    virtual std::unique_ptr<InterpolationSimple> Clone() const override
+    {
+        return std::make_unique<InterpolationPoint>(*this);
+    }
+
+    virtual ShapeFunctions GetShapeFunctions(const NaturalCoords& naturalIpCoords) const override
+    {
+        return Eigen::VectorXd::Ones(1);
+    }
+
+    virtual DerivativeShapeFunctionsNatural
+    GetDerivativeShapeFunctions(const NaturalCoords& naturalIpCoords) const override
+    {
+        throw Exception(__PRETTY_FUNCTION__, "Not implemented.");
+    }
+
+    virtual NaturalCoords GetLocalCoords(int nodeId) const override
+    {
+        return Eigen::VectorXd::Ones(1);
+    }
+
+    virtual int GetNumNodes() const override
+    {
+        return 1;
+    }
+
+    virtual const Shape& GetShape() const override
+    {
+        return mShape;
+    }
+};
+
+
+class CellPoint : public CellInterface
+{
+public:
+    CellPoint(const ElementCollection& elements, const int id)
+        : mElements(elements)
+        , mId(id)
+        , mShape(elements.GetShape())
+    {
+    }
+
+    virtual ~CellPoint() = default;
+
+    virtual double Integrate(ScalarFunction) override
+    {
+        throw Exception(__PRETTY_FUNCTION__, "Not implemented");
+    }
+
+    int Id()
+    {
+        return mId;
+    }
+
+    virtual DofVector<double> Integrate(VectorFunction f) override
+    {
+        DofVector<double> result;
+        CellData cellData(mElements, Id());
+
+        Jacobian jacobian(Eigen::VectorXd(), Eigen::MatrixXd(), 0);
+        CellIpData cellipData(cellData, jacobian, Eigen::VectorXd(), 0);
+        result += f(cellipData);
+
+        return result;
+    }
+    virtual DofMatrix<double> Integrate(MatrixFunction f) override
+    {
+        DofMatrix<double> result;
+        CellData cellData(mElements, Id());
+        Jacobian jacobian(Eigen::VectorXd(), Eigen::MatrixXd(), 0);
+        CellIpData cellipData(cellData, jacobian, Eigen::VectorXd(), 0);
+        result += f(cellipData);
+
+        return result;
+    }
+    virtual void Apply(VoidFunction) override
+    {
+        throw Exception(__PRETTY_FUNCTION__, "Not implemented");
+    }
+
+    virtual std::vector<Eigen::VectorXd> Eval(EvalFunction f) const override
+    {
+        throw Exception(__PRETTY_FUNCTION__, "Not implemented");
+    }
+
+    virtual Eigen::VectorXi DofNumbering(DofType dof) override
+    {
+        return mElements.DofElement(dof).GetDofNumbering();
+    }
+
+    //! Coordinate interpolation
+    virtual Eigen::VectorXd Interpolate(Eigen::VectorXd naturalCoords) const override
+    {
+        throw Exception(__PRETTY_FUNCTION__, "Not implemented");
+    }
+    //! Dof interpolation
+    virtual Eigen::VectorXd Interpolate(Eigen::VectorXd naturalCoords, DofType dof) const override
+    {
+        throw Exception(__PRETTY_FUNCTION__, "Not implemented");
+    }
+
+    virtual const Shape& GetShape() const override
+    {
+        throw Exception(__PRETTY_FUNCTION__, "Not implemented");
+    }
+
+private:
+    const ElementCollection& mElements;
+    const int mId;
+    const Shape& mShape;
+};
+}
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
 class MoistureTransportTest
@@ -37,6 +159,8 @@ public:
     GlobalDofVector Gradient();
     GlobalDofMatrixSparse Stiffness();
     GlobalDofMatrixSparse Damping();
+    GlobalDofVector GradientBoundary();
+    GlobalDofMatrixSparse StiffnessBoundary();
 
 
     GlobalDofVector CreateDofVector();
@@ -72,14 +196,17 @@ private:
     MeshFem mMesh;
     boost::ptr_vector<CellInterface> cellContainer;
     Group<CellInterface> grpCellsMT;
+    Group<CellInterface> grpCellsMTBoundary;
     IntegrationTypeTensorProduct<1> integrationType = {3, eIntegrationMethod::GAUSS};
     MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq> integrandMoistureTransport;
+    MoistureTransportBoundary<TDim, TDCw, TDCg, TWVEq> mIntegrandMoistureTransportBoundary;
 };
 
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
 MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::MoistureTransportTest(double rho_w, double rho_g_sat, double PV)
     : integrandMoistureTransport(dofWV, dofRH, rho_w, rho_g_sat, PV)
+    , mIntegrandMoistureTransportBoundary(dofWV, dofRH)
 {
 }
 
@@ -124,6 +251,32 @@ void MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::CreateUnitMesh(int nu
         cellContainer.push_back(new Cell(element, integrationType, cellId++));
         grpCellsMT.Add(cellContainer.back());
     }
+
+    // create Boundary elements
+    InterpolationSimple& boundaryInterpolation = mMesh.CreateInterpolation(InterpolationPoint());
+
+    Eigen::VectorXd coordLeftBoundary = Eigen::VectorXd::Zero(1);
+    Eigen::VectorXd coordRightBoundary = Eigen::VectorXd::Ones(1);
+
+    ElementCollectionFem& leftElementCollection =
+            mMesh.Elements.Add({{{mMesh.NodeAtCoordinate(coordLeftBoundary)}, boundaryInterpolation}});
+    leftElementCollection.AddDofElement(
+            dofWV, ElementFem({&mMesh.NodeAtCoordinate(coordLeftBoundary, dofWV)}, boundaryInterpolation));
+    leftElementCollection.AddDofElement(
+            dofRH, ElementFem({&mMesh.NodeAtCoordinate(coordLeftBoundary, dofRH)}, boundaryInterpolation));
+
+
+    ElementCollectionFem& rightElementCollection =
+            mMesh.Elements.Add({{{mMesh.NodeAtCoordinate(coordRightBoundary)}, boundaryInterpolation}});
+    rightElementCollection.AddDofElement(
+            dofWV, ElementFem({&mMesh.NodeAtCoordinate(coordRightBoundary, dofWV)}, boundaryInterpolation));
+    rightElementCollection.AddDofElement(
+            dofRH, ElementFem({&mMesh.NodeAtCoordinate(coordRightBoundary, dofRH)}, boundaryInterpolation));
+
+    cellContainer.push_back(new CellPoint(leftElementCollection, cellId++));
+    grpCellsMTBoundary.Add(cellContainer.back());
+    cellContainer.push_back(new CellPoint(rightElementCollection, cellId++));
+    grpCellsMTBoundary.Add(cellContainer.back());
 }
 
 
@@ -152,6 +305,25 @@ GlobalDofMatrixSparse MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::Damp
     return SimpleAssembler(dofInfo).BuildMatrix(
             grpCellsMT, {dofRH, dofWV},
             std::bind(&MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::Damping, integrandMoistureTransport, _1, 0.));
+}
+
+template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
+GlobalDofVector MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::GradientBoundary()
+{
+    CheckDofNumbering();
+    return SimpleAssembler(dofInfo).BuildVector(grpCellsMTBoundary, {dofRH, dofWV},
+                                                std::bind(&MoistureTransportBoundary<TDim, TDCw, TDCg, TWVEq>::Gradient,
+                                                          mIntegrandMoistureTransportBoundary, _1, 0.));
+}
+
+template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
+GlobalDofMatrixSparse MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::StiffnessBoundary()
+{
+    CheckDofNumbering();
+    return SimpleAssembler(dofInfo).BuildMatrix(
+            grpCellsMTBoundary, {dofRH, dofWV},
+            std::bind(&MoistureTransportBoundary<TDim, TDCw, TDCg, TWVEq>::Stiffness,
+                      mIntegrandMoistureTransportBoundary, _1, 0.));
 }
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
