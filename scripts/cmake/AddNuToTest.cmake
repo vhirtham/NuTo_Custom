@@ -26,9 +26,7 @@ function(addNuToTest TestName)
     add_dependencies(${TestName} NuTo)
     target_link_Libraries(${TestName}
         Boost::unit_test_framework
-        NuToBase
-        NuToMath
-        NuToMechanics
+        libNuTo.so
         ${AdditionalLibs}
         )
     ### Add source directory
