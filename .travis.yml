@@ -23,7 +23,6 @@ before_install:
     - docker run -itd --name dock -u 0 -v $(pwd):/home/nuto/source nuto/nuto_docker:dev
 
 script:
-    - docker exec dock  bash -c "export LD_LIBRARY_PATH=/home/nuto/build/lib"
     - docker exec dock cmake -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_CXX_FLAGS="$COVERAGE $WERROR" ../source
     - docker exec dock make -j2
     - docker exec dock ctest --output-on-failure
