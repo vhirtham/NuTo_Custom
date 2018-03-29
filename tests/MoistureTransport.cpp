@@ -63,6 +63,9 @@ void IntegrationTest(int numElements, double delta_t, double t_final, double lWV
         t += delta_t;
         int iteration = 0;
 
+        //        Eigen::VectorXd gradBoundary = ToEigen(MTT.GradientBoundary().J, MTT.GetDofs());
+        //        Eigen::MatrixXd stiffBoundary = ToEigen(MTT.StiffnessBoundary().JJ, MTT.GetDofs());
+        //        std::cout << stiffBoundary << std::endl;
 
         Eigen::VectorXd d_it = d + delta_d;
         Eigen::VectorXd v_it =
@@ -72,7 +75,8 @@ void IntegrationTest(int numElements, double delta_t, double t_final, double lWV
         MTT.MergeDofs(d_it, v_it, a_it);
 
 
-        Eigen::VectorXd grad = ToEigen(MTT.Gradient().J, MTT.GetDofs());
+        Eigen::VectorXd grad =
+                ToEigen(MTT.Gradient().J, MTT.GetDofs()) + ToEigen(MTT.GradientBoundary().J, MTT.GetDofs());
 
         while (grad.lpNorm<Eigen::Infinity>() > 10e-12)
         {
@@ -81,7 +85,8 @@ void IntegrationTest(int numElements, double delta_t, double t_final, double lWV
             if (iteration > 20)
                 throw Exception(__PRETTY_FUNCTION__, "No convergence");
 
-            Eigen::SparseMatrix<double> K = ToEigen(MTT.Stiffness().JJ, MTT.GetDofs());
+            Eigen::SparseMatrix<double> K =
+                    ToEigen(MTT.Stiffness().JJ, MTT.GetDofs()) + ToEigen(MTT.StiffnessBoundary().JJ, MTT.GetDofs());
             Eigen::SparseMatrix<double> D = ToEigen(MTT.Damping().JJ, MTT.GetDofs());
             Eigen::SparseMatrix<double> H = gamma / (delta_t * beta) * D + K;
 
@@ -93,7 +98,7 @@ void IntegrationTest(int numElements, double delta_t, double t_final, double lWV
 
             MTT.MergeDofs(d_it, v_it, a_it);
 
-            grad = ToEigen(MTT.Gradient().J, MTT.GetDofs());
+            grad = ToEigen(MTT.Gradient().J, MTT.GetDofs()) + ToEigen(MTT.GradientBoundary().J, MTT.GetDofs());
         }
         d = d_it;
         v = v_it;
@@ -104,8 +109,8 @@ void IntegrationTest(int numElements, double delta_t, double t_final, double lWV
         yRH = d.tail(numDofsWV);
         plot.Clear();
         plot.AddPlot(std::vector<double>{0, 0}, std::vector<double>{0.0, 1});
-        plot.AddPlot(xRH, yRH, {255, 0, 0}, eLineType::LINES, "relative humidity");
-        plot.AddPlot(xWV, yWV, {0, 255, 0}, eLineType::LINES, "water Volume fraction");
+        plot.AddPlot(xRH, yRH, {{255, 0, 0}}, eLineType::LINES, "relative humidity");
+        plot.AddPlot(xWV, yWV, {{0, 255, 0}}, eLineType::LINES, "water volume fraction");
         plot.Show();
         std::this_thread::sleep_for(20ms);
 #endif
@@ -142,6 +147,9 @@ BOOST_AUTO_TEST_CASE(PoresCompletlyFilledWithWater)
 
 BOOST_AUTO_TEST_CASE(Integrationtest)
 {
-    IntegrationTest<1, MTCConst<4>, MTCConst<2, 10>, MTCConst<20>, MTCConst<1, 10>>(10, 0.0001, 0.05, 0.01, 0.19, 1.0,
-                                                                                    0.05);
+    //    IntegrationTest<1, MTCConst<4>, MTCConst<2, 10>, MTCConst<20>, MTCConst<1, 10>>(10, 0.0001, 0.05, 0.01, 0.19,
+    //    1.0,
+    //                                                                                    0.05);
+    IntegrationTest<1, MTCConst<4>, MTCConst<2, 100>, MTCConst<20>, MTCConst<1, 10>>(40, 0.0001, 0.05, 0.1, 0.1, 1.0,
+                                                                                     1.0);
 }
