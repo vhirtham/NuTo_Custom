@@ -17,6 +17,10 @@
 #include "integrands/MoistureTransport.h"
 #include "integrands/MoistureTransportBoundary.h"
 
+// Test includes
+#include "CellPoint.h"
+#include "InterpolationPoint.h"
+
 // Other includes
 #include <boost/ptr_container/ptr_vector.hpp>
 
@@ -25,126 +29,10 @@ using namespace NuTo::Integrands;
 using namespace std::placeholders;
 
 
-namespace NuTo
-{
-class InterpolationPoint : public InterpolationSimple
-{
-    Pyramid mShape;
-
-public:
-    virtual std::unique_ptr<InterpolationSimple> Clone() const override
-    {
-        return std::make_unique<InterpolationPoint>(*this);
-    }
-
-    virtual ShapeFunctions GetShapeFunctions(const NaturalCoords& naturalIpCoords) const override
-    {
-        return Eigen::VectorXd::Ones(1);
-    }
-
-    virtual DerivativeShapeFunctionsNatural
-    GetDerivativeShapeFunctions(const NaturalCoords& naturalIpCoords) const override
-    {
-        throw Exception(__PRETTY_FUNCTION__, "Not implemented.");
-    }
-
-    virtual NaturalCoords GetLocalCoords(int nodeId) const override
-    {
-        return Eigen::VectorXd::Ones(1);
-    }
-
-    virtual int GetNumNodes() const override
-    {
-        return 1;
-    }
-
-    virtual const Shape& GetShape() const override
-    {
-        return mShape;
-    }
-};
 
 
-class CellPoint : public CellInterface
-{
-public:
-    CellPoint(const ElementCollection& elements, const int id)
-        : mElements(elements)
-        , mId(id)
-        , mShape(elements.GetShape())
-    {
-    }
 
-    virtual ~CellPoint() = default;
 
-    virtual double Integrate(ScalarFunction) override
-    {
-        throw Exception(__PRETTY_FUNCTION__, "Not implemented");
-    }
-
-    int Id()
-    {
-        return mId;
-    }
-
-    virtual DofVector<double> Integrate(VectorFunction f) override
-    {
-        DofVector<double> result;
-        CellData cellData(mElements, Id());
-
-        Jacobian jacobian(Eigen::VectorXd(), Eigen::MatrixXd(), 0);
-        CellIpData cellipData(cellData, jacobian, Eigen::VectorXd(), 0);
-        result += f(cellipData);
-
-        return result;
-    }
-    virtual DofMatrix<double> Integrate(MatrixFunction f) override
-    {
-        DofMatrix<double> result;
-        CellData cellData(mElements, Id());
-        Jacobian jacobian(Eigen::VectorXd(), Eigen::MatrixXd(), 0);
-        CellIpData cellipData(cellData, jacobian, Eigen::VectorXd(), 0);
-        result += f(cellipData);
-
-        return result;
-    }
-    virtual void Apply(VoidFunction) override
-    {
-        throw Exception(__PRETTY_FUNCTION__, "Not implemented");
-    }
-
-    virtual std::vector<Eigen::VectorXd> Eval(EvalFunction f) const override
-    {
-        throw Exception(__PRETTY_FUNCTION__, "Not implemented");
-    }
-
-    virtual Eigen::VectorXi DofNumbering(DofType dof) override
-    {
-        return mElements.DofElement(dof).GetDofNumbering();
-    }
-
-    //! Coordinate interpolation
-    virtual Eigen::VectorXd Interpolate(Eigen::VectorXd naturalCoords) const override
-    {
-        throw Exception(__PRETTY_FUNCTION__, "Not implemented");
-    }
-    //! Dof interpolation
-    virtual Eigen::VectorXd Interpolate(Eigen::VectorXd naturalCoords, DofType dof) const override
-    {
-        throw Exception(__PRETTY_FUNCTION__, "Not implemented");
-    }
-
-    virtual const Shape& GetShape() const override
-    {
-        throw Exception(__PRETTY_FUNCTION__, "Not implemented");
-    }
-
-private:
-    const ElementCollection& mElements;
-    const int mId;
-    const Shape& mShape;
-};
-}
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
 class MoistureTransportTest
