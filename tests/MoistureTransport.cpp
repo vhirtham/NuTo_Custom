@@ -31,8 +31,8 @@ void IntegrationTest(int numElements, double delta_t, double t_final, double lWV
 
 
     auto dofs = MTT.GetDofs();
-    const int numDofsWV = MTT.GetMesh().NodesTotal(dofs[0]).Size();
-    const int numDofsRH = MTT.GetMesh().NodesTotal(dofs[1]).Size();
+    const int numDofsWV = MTT.GetMesh().NodesTotal(dofs[0]).Size() * dofs[0].GetNum();
+    const int numDofsRH = MTT.GetMesh().NodesTotal(dofs[1]).Size() * dofs[1].GetNum();
 
     Eigen::VectorXd xWV(numDofsWV), yWV(numDofsWV), xRH(numDofsRH), yRH(numDofsRH);
 
