@@ -6,20 +6,24 @@ function(addNuToTest TestName)
     ### Add prefix "Test_" to avoid target naming conflicts (for example with benchmarks or other GDL targets)
     #set(TestName "Test_${TestName}")
 
-    ### Find additional libs
+    ### Separate sources from libs
     if(ARGN)
-        foreach(objectName ${ARGN})
-    #        singleSourceTargetName(${CMAKE_SOURCE_DIR}/src/${filename} target)
-            set(AdditionalLibs
-                ${AdditionalLibs}
-                ${objectName})
+        foreach(input ${ARGN})
+            string(FIND "${input}" ".cpp" IsCpp)
+            if(${IsCpp} EQUAL "-1")
+                set(AdditionalLibs
+                    "${AdditionalLibs};${input}")
+            else()
+                set(AdditionalSources
+                    "${AdditionalSources};${NUTO_APPS_ROOT_DIR}/src/${input}")
+            endif()
         endforeach()
     endif()
 
     ### Create executable
     add_executable(${TestName}
         "${TestName}.cpp"
-        #${AdditionalObjects}
+        ${AdditionalSources}
         )
 
     ### Link necessary libs

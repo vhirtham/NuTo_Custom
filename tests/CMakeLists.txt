@@ -3,5 +3,6 @@ addNuToTest(MoistureTransport
     )
 
 addNuToTest(Shrinkage
+    structures/MultiPhysicsStructure.cpp
     Tools
     )

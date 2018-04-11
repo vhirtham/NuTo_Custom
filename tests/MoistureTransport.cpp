@@ -99,6 +99,10 @@ void IntegrationTest(int numElements, double delta_t, double t_final, double lWV
             MTT.MergeDofs(d_it, v_it, a_it);
 
             grad = ToEigen(MTT.Gradient().J, MTT.GetDofs()) + ToEigen(MTT.GradientBoundary().J, MTT.GetDofs());
+            std::cout << "Time: " << t << std::endl
+                      << "Iteration: " << iteration << std::endl
+                      << "Max residual: " << grad.lpNorm<Eigen::Infinity>() << std::endl
+                      << std::endl;
         }
         d = d_it;
         v = v_it;
@@ -150,6 +154,6 @@ BOOST_AUTO_TEST_CASE(Integrationtest)
     //    IntegrationTest<1, MTCConst<4>, MTCConst<2, 10>, MTCConst<20>, MTCConst<1, 10>>(10, 0.0001, 0.05, 0.01, 0.19,
     //    1.0,
     //                                                                                    0.05);
-    IntegrationTest<1, MTCConst<4>, MTCConst<2, 100>, MTCConst<20>, MTCConst<1, 10>>(40, 0.0001, 0.05, 0.1, 0.1, 1.0,
+    IntegrationTest<1, MTCConst<4>, MTCConst<2, 100>, MTCConst<20>, MTCConst<1, 10>>(40, 0.0001, 0.001, 0.1, 0.1, 1.0,
                                                                                      1.0);
 }
