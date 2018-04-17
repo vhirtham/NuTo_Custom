@@ -5,8 +5,8 @@
 #include "nuto/mechanics/constraints/Constraints.h"
 #include "nuto/mechanics/dofs/DofInfo.h"
 #include "nuto/mechanics/dofs/DofType.h"
-//#include "nuto/mechanics/dofs/GlobalDofVector.h"
-//#include "nuto/mechanics/dofs/GlobalDofMatrixSparse.h"
+#include "nuto/mechanics/dofs/DofVector.h"
+#include "nuto/mechanics/dofs/DofMatrixSparse.h"
 #include "nuto/mechanics/integrationtypes/IntegrationTypeTriangle.h"
 #include "nuto/mechanics/integrationtypes/IntegrationTypeTensorProduct.h"
 #include "nuto/mechanics/mesh/MeshFem.h"
@@ -18,13 +18,16 @@
 #include "boost/ptr_container/ptr_vector.hpp"
 
 
-namespace NuTo {
+namespace NuTo
+{
 
 class GlobalDofVector;
 class GlobalDofMatrixSparse;
 
-using MoistureTransportIntegrand = Integrands::MoistureTransport<2, MTCConst<1>, MTCConst<1, 100>, MTCConst<0>, MTCConst<1, 10>>;
-using MoistureTransportBoundaryIntegrand = Integrands::MoistureTransportBoundary<2, MTCConst<1>, MTCConst<1, 100>, MTCConst<1, 10>>;
+using MoistureTransportIntegrand =
+        Integrands::MoistureTransport<2, MTCConst<1>, MTCConst<1, 100>, MTCConst<0>, MTCConst<1, 10>>;
+using MoistureTransportBoundaryIntegrand =
+        Integrands::MoistureTransportBoundary<2, MTCConst<1>, MTCConst<1, 100>, MTCConst<1, 10>>;
 
 class MultiPhysicsStructure
 {
@@ -65,26 +68,27 @@ public:
     }
 
 
-    GlobalDofVector GradientMoistureTransport();
-    GlobalDofVector GradientMoistureTransportBoundary();
+    DofVector<double> GradientMoistureTransport();
+    DofVector<double> GradientMoistureTransportBoundary();
 
-    GlobalDofMatrixSparse StiffnessMoistureTransport();
-    GlobalDofMatrixSparse StiffnessMoistureTransportBoundary();
-    GlobalDofMatrixSparse DampingMoistureTransport();
+    DofMatrixSparse<double> StiffnessMoistureTransport();
+    DofMatrixSparse<double> StiffnessMoistureTransportBoundary();
+    DofMatrixSparse<double> DampingMoistureTransport();
 
     void CheckDofNumbering();
-    GlobalDofVector CreateGlobalDofVector(std::vector<DofType> dofs);
-    void GetDofVector(GlobalDofVector& dofVector, std::vector<DofType> dofs, int instance = 0);
+    DofVector<double> CreateGlobalDofVector(std::vector<DofType> dofs);
+    void GetDofVector(DofVector<double>& dofVector, std::vector<DofType> dofs, int instance = 0);
 
     void MergeDofs(Eigen::VectorXd values, std::vector<DofType> dofs, int instance = 0);
-    void MergeDofVector(GlobalDofVector& dofs, int instance = 0);
+    void MergeDofVector(DofVector<double>& dofs, int instance = 0);
 
     void CreateUnitMesh(int numX, int numY, const InterpolationSimple& interpolationDispArg,
-                        const InterpolationSimple& interpolationWVArg, const InterpolationSimple& interpolationRHArg, const InterpolationSimple& interpolationMTBoundaryArg);
+                        const InterpolationSimple& interpolationWVArg, const InterpolationSimple& interpolationRHArg,
+                        const InterpolationSimple& interpolationMTBoundaryArg);
 
-    void AddBoundaryElementsAtAxis(int& cellId, const InterpolationSimple& interpolationMTBoundary, eDirection direction, double axisOffset = 0.0);
+    void AddBoundaryElementsAtAxis(int& cellId, const InterpolationSimple& interpolationMTBoundary,
+                                   eDirection direction, double axisOffset = 0.0);
 
     Eigen::VectorXd ExtractDofs(std::vector<DofType> dofs, int instance = 0);
 };
-
 }

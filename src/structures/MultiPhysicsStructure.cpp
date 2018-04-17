@@ -13,7 +13,7 @@ using namespace std::placeholders;
 namespace NuTo
 {
 
-GlobalDofVector MultiPhysicsStructure::GradientMoistureTransport()
+DofVector<double> MultiPhysicsStructure::GradientMoistureTransport()
 {
     CheckDofNumbering();
     return SimpleAssembler(mDofInfo).BuildVector(
@@ -21,7 +21,7 @@ GlobalDofVector MultiPhysicsStructure::GradientMoistureTransport()
             std::bind(&MoistureTransportIntegrand::Gradient, mMoistureTransport, _1, 0.));
 }
 
-GlobalDofVector MultiPhysicsStructure::GradientMoistureTransportBoundary()
+DofVector<double> MultiPhysicsStructure::GradientMoistureTransportBoundary()
 {
     CheckDofNumbering();
     return SimpleAssembler(mDofInfo).BuildVector(
@@ -29,7 +29,7 @@ GlobalDofVector MultiPhysicsStructure::GradientMoistureTransportBoundary()
             std::bind(&MoistureTransportBoundaryIntegrand::Gradient, mMoistureTransportBoundary, _1, 0.));
 }
 
-GlobalDofMatrixSparse MultiPhysicsStructure::StiffnessMoistureTransport()
+DofMatrixSparse<double> MultiPhysicsStructure::StiffnessMoistureTransport()
 {
     CheckDofNumbering();
     return SimpleAssembler(mDofInfo).BuildMatrix(
@@ -37,7 +37,7 @@ GlobalDofMatrixSparse MultiPhysicsStructure::StiffnessMoistureTransport()
             std::bind(&MoistureTransportIntegrand::Stiffness, mMoistureTransport, _1, 0.));
 }
 
-GlobalDofMatrixSparse MultiPhysicsStructure::StiffnessMoistureTransportBoundary()
+DofMatrixSparse<double> MultiPhysicsStructure::StiffnessMoistureTransportBoundary()
 {
     CheckDofNumbering();
     return SimpleAssembler(mDofInfo).BuildMatrix(
@@ -45,7 +45,7 @@ GlobalDofMatrixSparse MultiPhysicsStructure::StiffnessMoistureTransportBoundary(
             std::bind(&MoistureTransportBoundaryIntegrand::Stiffness, mMoistureTransportBoundary, _1, 0.));
 }
 
-GlobalDofMatrixSparse MultiPhysicsStructure::DampingMoistureTransport()
+DofMatrixSparse<double> MultiPhysicsStructure::DampingMoistureTransport()
 {
     CheckDofNumbering();
     return SimpleAssembler(mDofInfo).BuildMatrix(
@@ -59,20 +59,17 @@ void MultiPhysicsStructure::CheckDofNumbering()
         throw Exception(__PRETTY_FUNCTION__, "Please do a dof numbering before trying to assemble something!");
 }
 
-GlobalDofVector MultiPhysicsStructure::CreateGlobalDofVector(std::vector<DofType> dofs)
+DofVector<double> MultiPhysicsStructure::CreateGlobalDofVector(std::vector<DofType> dofs)
 {
-    GlobalDofVector d;
+    DofVector<double> d;
     for (const auto& dof : dofs)
     {
-        int nDofWV = (mMesh.NodesTotal(dof)).Size() * dof.GetNum();
-        int nDofWV_dep = mConstraints.GetNumEquations(dof);
-        d.J[dof] = Eigen::VectorXd(nDofWV - nDofWV_dep);
-        d.K[dof] = Eigen::VectorXd(nDofWV_dep);
+        d[dof] = Eigen::VectorXd(mMesh.NodesTotal(dof).Size() * dof.GetNum());
     }
     return d;
 }
 
-void MultiPhysicsStructure::GetDofVector(GlobalDofVector& dofVector, std::vector<DofType> dofs, int instance)
+void MultiPhysicsStructure::GetDofVector(DofVector<double>& dofVector, std::vector<DofType> dofs, int instance)
 {
     CheckDofNumbering();
     NodalValueMerger Merger(&mMesh);
@@ -81,16 +78,16 @@ void MultiPhysicsStructure::GetDofVector(GlobalDofVector& dofVector, std::vector
 
 void MultiPhysicsStructure::MergeDofs(Eigen::VectorXd values, std::vector<DofType> dofs, int instance)
 {
-    GlobalDofVector gdv{CreateGlobalDofVector(dofs)};
-    FromEigen(values, dofs, &gdv.J);
+    DofVector<double> gdv{CreateGlobalDofVector(dofs)};
+    FromEigen(values, dofs, &gdv);
     MergeDofVector(gdv, instance);
 }
 
-void MultiPhysicsStructure::MergeDofVector(GlobalDofVector& dofs, int instance)
+void MultiPhysicsStructure::MergeDofVector(DofVector<double>& dofs, int instance)
 {
     CheckDofNumbering();
     NodalValueMerger Merger(&mMesh);
-    Merger.Merge(dofs, dofs.J.DofTypes(), instance);
+    Merger.Merge(dofs, dofs.DofTypes(), instance);
 }
 
 void MultiPhysicsStructure::CreateUnitMesh(int numX, int numY, const InterpolationSimple& interpolationDispArg,
@@ -197,8 +194,8 @@ void MultiPhysicsStructure::AddBoundaryElementsAtAxis(int& cellId, const Interpo
 
 Eigen::VectorXd MultiPhysicsStructure::ExtractDofs(std::vector<DofType> dofs, int instance)
 {
-    GlobalDofVector gdv{CreateGlobalDofVector(dofs)};
+    DofVector<double> gdv{CreateGlobalDofVector(dofs)};
     GetDofVector(gdv, dofs, instance);
-    return ToEigen(gdv.J, dofs);
+    return ToEigen(gdv, dofs);
 }
 }
