@@ -75,8 +75,7 @@ void IntegrationTest(int numElements, double delta_t, double t_final, double lWV
         MTT.MergeDofs(d_it, v_it, a_it);
 
 
-        Eigen::VectorXd grad =
-                ToEigen(MTT.Gradient().J, MTT.GetDofs()) + ToEigen(MTT.GradientBoundary().J, MTT.GetDofs());
+        Eigen::VectorXd grad = ToEigen(MTT.Gradient(), MTT.GetDofs()) + ToEigen(MTT.GradientBoundary(), MTT.GetDofs());
 
         while (grad.lpNorm<Eigen::Infinity>() > 10e-12)
         {
@@ -86,8 +85,8 @@ void IntegrationTest(int numElements, double delta_t, double t_final, double lWV
                 throw Exception(__PRETTY_FUNCTION__, "No convergence");
 
             Eigen::SparseMatrix<double> K =
-                    ToEigen(MTT.Stiffness().JJ, MTT.GetDofs()) + ToEigen(MTT.StiffnessBoundary().JJ, MTT.GetDofs());
-            Eigen::SparseMatrix<double> D = ToEigen(MTT.Damping().JJ, MTT.GetDofs());
+                    ToEigen(MTT.Stiffness(), MTT.GetDofs()) + ToEigen(MTT.StiffnessBoundary(), MTT.GetDofs());
+            Eigen::SparseMatrix<double> D = ToEigen(MTT.Damping(), MTT.GetDofs());
             Eigen::SparseMatrix<double> H = gamma / (delta_t * beta) * D + K;
 
             delta_d = solver.Solve(H, -grad);
@@ -98,7 +97,7 @@ void IntegrationTest(int numElements, double delta_t, double t_final, double lWV
 
             MTT.MergeDofs(d_it, v_it, a_it);
 
-            grad = ToEigen(MTT.Gradient().J, MTT.GetDofs()) + ToEigen(MTT.GradientBoundary().J, MTT.GetDofs());
+            grad = ToEigen(MTT.Gradient(), MTT.GetDofs()) + ToEigen(MTT.GradientBoundary(), MTT.GetDofs());
             std::cout << "Time: " << t << std::endl
                       << "Iteration: " << iteration << std::endl
                       << "Max residual: " << grad.lpNorm<Eigen::Infinity>() << std::endl
