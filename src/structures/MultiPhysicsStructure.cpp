@@ -13,6 +13,21 @@ using namespace std::placeholders;
 namespace NuTo
 {
 
+DofVector<double> MultiPhysicsStructure::GradientMechanics()
+{
+    CheckDofNumbering();
+    return SimpleAssembler(mDofInfo).BuildVector(
+            mGrpCellsMT, {mDofDisp},
+            std::bind(&Integrands::MultiPhysicsMomentumBalance<2>::Gradient, mMPMomentumBalance, _1, 0.));
+}
+
+// DofVector<double> MultiPhysicsStructure::GradientShrinkage()
+//{
+//    CheckDofNumbering();
+//    return SimpleAssembler(mDofInfo).BuildVector(mGrpCellsMT, {mDofDisp},
+//                                                 std::bind(&Integrands::Shrinkage<2>::Gradient, mShrinkage, _1, 0.));
+//}
+
 DofVector<double> MultiPhysicsStructure::GradientMoistureTransport()
 {
     CheckDofNumbering();
@@ -27,6 +42,14 @@ DofVector<double> MultiPhysicsStructure::GradientMoistureTransportBoundary()
     return SimpleAssembler(mDofInfo).BuildVector(
             mGrpCellsMTBoundary, {mDofRH, mDofWV},
             std::bind(&MoistureTransportBoundaryIntegrand::Gradient, mMoistureTransportBoundary, _1, 0.));
+}
+
+DofMatrixSparse<double> MultiPhysicsStructure::StiffnessMechanics()
+{
+    CheckDofNumbering();
+    return SimpleAssembler(mDofInfo).BuildMatrix(
+            mGrpCellsMT, {mDofDisp},
+            std::bind(&Integrands::MultiPhysicsMomentumBalance<2>::Hessian0, mMPMomentumBalance, _1, 0.));
 }
 
 DofMatrixSparse<double> MultiPhysicsStructure::StiffnessMoistureTransport()

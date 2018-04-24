@@ -9,20 +9,30 @@ namespace NuTo
 {
 namespace Integrands
 {
+template <int TDim>
 class Shrinkage
 {
+    DofType mDofDisp;
+    DofType mDofWV;
+    DofType mDofRH;
+
+    double mWeightingFactor = 0.0;
+
 public:
+    //! @brief ctor
+    inline Shrinkage(DofType dofTypeDisp, DofType dofTypeWV, DofType dofTypeRH);
 
-//! @brief ctor
-inline Shrinkage(DofType dofTypeDisp, DofType dofTypeWV, DofType dofTypeRH);
+
+    inline Eigen::VectorXd Stress(const CellIpData& cellIpData, double deltaT);
+    inline Eigen::VectorXd Strain(const CellIpData& cellIpData, double deltaT);
 
 
-inline DofVector<double> Gradient(const CellIpData& cellIpData, double deltaT);
+private:
+    inline double CapillaryPressure(double rh);
 
-inline DofMatrix<double> Stiffness(const CellIpData& cellIpData, double deltaT);
-
-inline DofMatrix<double> Damping(const CellIpData& cellIpData, double deltaT);
-
+    inline Eigen::VectorXd ComponentVector();
 };
 }
 }
+
+#include "Shrinkage.inl"

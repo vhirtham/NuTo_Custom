@@ -11,9 +11,13 @@
 #include "nuto/mechanics/integrationtypes/IntegrationTypeTensorProduct.h"
 #include "nuto/mechanics/mesh/MeshFem.h"
 
+// Integrands
 #include "integrands/MoistureTransport.h"
+#include "integrands/Shrinkage.h"
 #include "integrands/MoistureTransportBoundary.h"
 #include "integrands/MoistureTransportCoefficients.h"
+#include "nuto/mechanics/constitutive/LinearElastic.h"
+#include "integrands/MultiPhysicsMomentumBalance.h"
 
 #include "boost/ptr_container/ptr_vector.hpp"
 
@@ -31,7 +35,7 @@ using MoistureTransportBoundaryIntegrand =
 
 class MultiPhysicsStructure
 {
-    DofType mDofDisp = {"Displacements", 3};
+    DofType mDofDisp = {"Displacements", 2};
     DofType mDofWV = {"waterVolumeFraction", 1};
     DofType mDofRH = {"relativeHumidity", 1};
     DofInfo mDofInfo;
@@ -42,14 +46,25 @@ class MultiPhysicsStructure
     Group<CellInterface> mGrpCellsMT;
     Group<CellInterface> mGrpCellsMTBoundary;
     boost::ptr_vector<CellInterface> mCellContainer;
+    Laws::LinearElastic<2> mLawLinearElastic;
+    Integrands::MultiPhysicsMomentumBalance<2> mMPMomentumBalance;
+    Integrands::Shrinkage<2> mShrinkage;
     MoistureTransportIntegrand mMoistureTransport;
     MoistureTransportBoundaryIntegrand mMoistureTransportBoundary;
 
 public:
     MultiPhysicsStructure(double rho_w = 1., double rho_g_sat = 0.1, double PV = 0.2)
-        : mMoistureTransport(mDofWV, mDofRH, rho_w, rho_g_sat, PV)
+        : mLawLinearElastic(30.e9, 0.0)
+        , mMPMomentumBalance(mDofDisp, mDofWV, mDofRH, mLawLinearElastic)
+        , mShrinkage(mDofDisp, mDofWV, mDofRH)
+        , mMoistureTransport(mDofWV, mDofRH, rho_w, rho_g_sat, PV)
         , mMoistureTransportBoundary(mDofWV, mDofRH)
     {
+    }
+
+    Integrands::MultiPhysicsMomentumBalance<2>& GetMultiPhysicsLaw()
+    {
+        return mMPMomentumBalance;
     }
 
     std::vector<DofType> GetDofs()
@@ -62,15 +77,22 @@ public:
         return mGrpCellsMT;
     }
 
+    Constraint::Constraints& GetConstraints()
+    {
+        return mConstraints;
+    }
+
     MeshFem& GetMesh()
     {
         return mMesh;
     }
 
-
+    DofVector<double> GradientMechanics();
+    // DofVector<double> GradientShrinkage();
     DofVector<double> GradientMoistureTransport();
     DofVector<double> GradientMoistureTransportBoundary();
 
+    DofMatrixSparse<double> StiffnessMechanics();
     DofMatrixSparse<double> StiffnessMoistureTransport();
     DofMatrixSparse<double> StiffnessMoistureTransportBoundary();
     DofMatrixSparse<double> DampingMoistureTransport();
