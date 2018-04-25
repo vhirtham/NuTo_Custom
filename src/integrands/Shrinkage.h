@@ -20,7 +20,7 @@ class Shrinkage
 
 public:
     //! @brief ctor
-    inline Shrinkage(DofType dofTypeDisp, DofType dofTypeWV, DofType dofTypeRH);
+    inline Shrinkage(DofType dofTypeDisp, DofType dofTypeWV, DofType dofTypeRH, double weightingFactor);
 
 
     inline Eigen::VectorXd Stress(const CellIpData& cellIpData, double deltaT);

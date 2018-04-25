@@ -18,7 +18,7 @@ using namespace std::placeholders;
 BOOST_AUTO_TEST_CASE(Construction)
 {
     MultiPhysicsStructure ST;
-    ST.CreateUnitMesh(40, 40, InterpolationTriangleQuadratic(), InterpolationTriangleQuadratic(),
+    ST.CreateUnitMesh(4, 4, InterpolationTriangleQuadratic(), InterpolationTriangleQuadratic(),
                       InterpolationTriangleQuadratic(), InterpolationTrussLobatto(2));
 
 

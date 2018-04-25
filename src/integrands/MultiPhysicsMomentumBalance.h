@@ -22,11 +22,11 @@ class MultiPhysicsMomentumBalance
     DofType mDofWV;
     DofType mDofRH;
     const Laws::MechanicsInterface<TDim>& mLaw;
-    Shrinkage<TDim> mShrinkageIntegrand;
+    Shrinkage<TDim>& mShrinkageIntegrand;
 
 public:
     MultiPhysicsMomentumBalance(DofType dofDisp, DofType dofWV, DofType dofRH,
-                                const Laws::MechanicsInterface<TDim>& law);
+                                const Laws::MechanicsInterface<TDim>& mechanicsLaw, Shrinkage<TDim>& shrinkageLaw);
 
     Eigen::VectorXd Strain(const NuTo::CellIpData& cellIpData, double deltaT);
     Eigen::VectorXd StrainMechanics(const NuTo::CellIpData& cellIpData, double deltaT);

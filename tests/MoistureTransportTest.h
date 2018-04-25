@@ -81,7 +81,7 @@ private:
     Group<CellInterface> grpCellsMT;
     Group<CellInterface> grpCellsMTBoundary;
     IntegrationTypeTensorProduct<1> integrationType = {3, eIntegrationMethod::GAUSS};
-    MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq> integrandMoistureTransport;
+    MoistureTransport<TDCw, TDCg, TMeC, TWVEq> integrandMoistureTransport;
     MoistureTransportBoundary<TDim, TDCw, TDCg, TWVEq> mIntegrandMoistureTransportBoundary;
 };
 
@@ -169,16 +169,16 @@ DofVector<double> MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::Gradient
     CheckDofNumbering();
     return SimpleAssembler(dofInfo).BuildVector(
             grpCellsMT, {dofRH, dofWV},
-            std::bind(&MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::Gradient, integrandMoistureTransport, _1, 0.));
+            std::bind(&MoistureTransport<TDCw, TDCg, TMeC, TWVEq>::Gradient, integrandMoistureTransport, _1, 0.));
 }
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
 DofMatrixSparse<double> MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::Stiffness()
 {
     CheckDofNumbering();
-    return SimpleAssembler(dofInfo).BuildMatrix(grpCellsMT, {dofRH, dofWV},
-                                                std::bind(&MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::Stiffness,
-                                                          integrandMoistureTransport, _1, 0.));
+    return SimpleAssembler(dofInfo).BuildMatrix(
+            grpCellsMT, {dofRH, dofWV},
+            std::bind(&MoistureTransport<TDCw, TDCg, TMeC, TWVEq>::Stiffness, integrandMoistureTransport, _1, 0.));
 }
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
@@ -187,7 +187,7 @@ DofMatrixSparse<double> MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::Da
     CheckDofNumbering();
     return SimpleAssembler(dofInfo).BuildMatrix(
             grpCellsMT, {dofRH, dofWV},
-            std::bind(&MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::Damping, integrandMoistureTransport, _1, 0.));
+            std::bind(&MoistureTransport<TDCw, TDCg, TMeC, TWVEq>::Damping, integrandMoistureTransport, _1, 0.));
 }
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>

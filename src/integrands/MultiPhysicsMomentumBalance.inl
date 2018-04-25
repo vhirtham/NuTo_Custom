@@ -10,12 +10,12 @@ namespace Integrands
 
 template <int TDim>
 MultiPhysicsMomentumBalance<TDim>::MultiPhysicsMomentumBalance(DofType dofDisp, DofType dofWV, DofType dofRH,
-                                                               const Laws::MechanicsInterface<TDim>& law)
+                                                               const Laws::MechanicsInterface<TDim>& mechanicsLaw, Shrinkage<TDim> &shrinkageLaw)
     : mDofDisp{dofDisp}
     , mDofWV{dofWV}
     , mDofRH{dofRH}
-    , mLaw{law}
-    , mShrinkageIntegrand{mDofDisp, mDofWV, mDofRH}
+    , mLaw{mechanicsLaw}
+    , mShrinkageIntegrand{shrinkageLaw}
 {
 }
 

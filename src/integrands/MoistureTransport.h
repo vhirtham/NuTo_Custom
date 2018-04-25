@@ -9,7 +9,7 @@ namespace NuTo
 namespace Integrands
 {
 
-template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
+template <typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
 class MoistureTransport
 {
     DofType mDofTypeWV;

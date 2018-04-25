@@ -50,8 +50,8 @@
     const double wveq_drh_dt = TWVEq::d_RelativeHumidity_dt(wv, rh, wv_dt, rh_dt);
 
 
-template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::MoistureTransport(DofType dofTypeWV, DofType dofTypeRH, double rho_w,
+template <typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
+NuTo::Integrands::MoistureTransport<TDCw, TDCg, TMeC, TWVEq>::MoistureTransport(DofType dofTypeWV, DofType dofTypeRH, double rho_w,
         double rho_g_sat, double PV)
     : mDofTypeWV(dofTypeWV)
     , mDofTypeRH(dofTypeRH)
@@ -61,9 +61,9 @@ NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::MoistureTran
 {
 }
 
-template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
+template <typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
 NuTo::DofVector<double>
-NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::Gradient(const NuTo::CellIpData& cellIpData,
+NuTo::Integrands::MoistureTransport<TDCw, TDCg, TMeC, TWVEq>::Gradient(const NuTo::CellIpData& cellIpData,
                                                                              double deltaT)
 {
     DofVector<double> gradient;
@@ -87,9 +87,9 @@ NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::Gradient(con
     return gradient;
 }
 
-template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
+template <typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
 NuTo::DofMatrix<double>
-NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::Stiffness(const NuTo::CellIpData& cellIpData,
+NuTo::Integrands::MoistureTransport<TDCw, TDCg, TMeC, TWVEq>::Stiffness(const NuTo::CellIpData& cellIpData,
                                                                               double deltaT)
 {
     NuTo::DofMatrix<double> stiffness;
@@ -120,9 +120,9 @@ NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::Stiffness(co
     return stiffness;
 }
 
-template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
+template <typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
 NuTo::DofMatrix<double>
-NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::Damping(const NuTo::CellIpData& cellIpData,
+NuTo::Integrands::MoistureTransport<TDCw, TDCg, TMeC, TWVEq>::Damping(const NuTo::CellIpData& cellIpData,
                                                                             double deltaT)
 {
     NuTo::DofMatrix<double> damping;
@@ -152,8 +152,8 @@ NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::Damping(cons
     return damping;
 }
 
-template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-void NuTo::Integrands::MoistureTransport<TDim, TDCw, TDCg, TMeC, TWVEq>::CheckValuesValid(
+template < typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
+void NuTo::Integrands::MoistureTransport<TDCw, TDCg, TMeC, TWVEq>::CheckValuesValid(
         double wv)
 {
     if (std::abs(mPV - wv) < 10e-9)

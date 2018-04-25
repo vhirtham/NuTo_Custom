@@ -29,7 +29,7 @@ class GlobalDofVector;
 class GlobalDofMatrixSparse;
 
 using MoistureTransportIntegrand =
-        Integrands::MoistureTransport<2, MTCConst<1>, MTCConst<1, 100>, MTCConst<0>, MTCConst<1, 10>>;
+        Integrands::MoistureTransport<MTCConst<1>, MTCConst<1, 100>, MTCConst<0>, MTCConst<1, 10>>;
 using MoistureTransportBoundaryIntegrand =
         Integrands::MoistureTransportBoundary<2, MTCConst<1>, MTCConst<1, 100>, MTCConst<1, 10>>;
 
@@ -47,16 +47,16 @@ class MultiPhysicsStructure
     Group<CellInterface> mGrpCellsMTBoundary;
     boost::ptr_vector<CellInterface> mCellContainer;
     Laws::LinearElastic<2> mLawLinearElastic;
-    Integrands::MultiPhysicsMomentumBalance<2> mMPMomentumBalance;
     Integrands::Shrinkage<2> mShrinkage;
+    Integrands::MultiPhysicsMomentumBalance<2> mMPMomentumBalance;
     MoistureTransportIntegrand mMoistureTransport;
     MoistureTransportBoundaryIntegrand mMoistureTransportBoundary;
 
 public:
     MultiPhysicsStructure(double rho_w = 1., double rho_g_sat = 0.1, double PV = 0.2)
         : mLawLinearElastic(30.e9, 0.0)
-        , mMPMomentumBalance(mDofDisp, mDofWV, mDofRH, mLawLinearElastic)
-        , mShrinkage(mDofDisp, mDofWV, mDofRH)
+        , mShrinkage(mDofDisp, mDofWV, mDofRH, 0.5)
+        , mMPMomentumBalance(mDofDisp, mDofWV, mDofRH, mLawLinearElastic, mShrinkage)
         , mMoistureTransport(mDofWV, mDofRH, rho_w, rho_g_sat, PV)
         , mMoistureTransportBoundary(mDofWV, mDofRH)
     {
@@ -88,7 +88,6 @@ public:
     }
 
     DofVector<double> GradientMechanics();
-    // DofVector<double> GradientShrinkage();
     DofVector<double> GradientMoistureTransport();
     DofVector<double> GradientMoistureTransportBoundary();
 

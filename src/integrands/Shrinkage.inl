@@ -10,10 +10,11 @@ namespace Integrands
 {
 
 template <int TDim>
-Shrinkage<TDim>::Shrinkage(DofType dofTypeDisp, DofType dofTypeWV, DofType dofTypeRH)
+Shrinkage<TDim>::Shrinkage(DofType dofTypeDisp, DofType dofTypeWV, DofType dofTypeRH, double weightingFactor)
     : mDofDisp{dofTypeDisp}
     , mDofWV{dofTypeWV}
     , mDofRH{dofTypeRH}
+    , mWeightingFactor{weightingFactor}
 {
 }
 
