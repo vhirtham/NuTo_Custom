@@ -28,8 +28,7 @@ namespace NuTo
 class GlobalDofVector;
 class GlobalDofMatrixSparse;
 
-using MoistureTransportIntegrand =
-        Integrands::MoistureTransport<MTCConst<1>, MTCConst<1, 100>, MTCConst<0>, MTCConst<1, 10>>;
+
 using MoistureTransportBoundaryIntegrand =
         Integrands::MoistureTransportBoundary<2, MTCConst<1>, MTCConst<1, 100>, MTCConst<1, 10>>;
 
@@ -49,15 +48,17 @@ class MultiPhysicsStructure
     Laws::LinearElastic<2> mLawLinearElastic;
     Integrands::Shrinkage<2> mShrinkage;
     Integrands::MultiPhysicsMomentumBalance<2> mMPMomentumBalance;
-    MoistureTransportIntegrand mMoistureTransport;
+    Integrands::MoistureTransport mMoistureTransport;
     MoistureTransportBoundaryIntegrand mMoistureTransportBoundary;
+
 
 public:
     MultiPhysicsStructure(double rho_w = 1., double rho_g_sat = 0.1, double PV = 0.2)
         : mLawLinearElastic(30.e9, 0.0)
         , mShrinkage(mDofDisp, mDofWV, mDofRH, 0.5)
         , mMPMomentumBalance(mDofDisp, mDofWV, mDofRH, mLawLinearElastic, mShrinkage)
-        , mMoistureTransport(mDofWV, mDofRH, rho_w, rho_g_sat, PV)
+        , mMoistureTransport(mDofWV, mDofRH, MTCoefficientConstant{1.}, MTCoefficientConstant{0.01},
+                             MTCoefficientConstant{0.}, MTCoefficientConstant{0.1}, rho_w, rho_g_sat, PV)
         , mMoistureTransportBoundary(mDofWV, mDofRH)
     {
     }

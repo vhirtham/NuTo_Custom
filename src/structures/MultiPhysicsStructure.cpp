@@ -33,7 +33,7 @@ DofVector<double> MultiPhysicsStructure::GradientMoistureTransport()
     CheckDofNumbering();
     return SimpleAssembler(mDofInfo).BuildVector(
             mGrpCellsMT, {mDofRH, mDofWV},
-            std::bind(&MoistureTransportIntegrand::Gradient, mMoistureTransport, _1, 0.));
+            std::bind(&Integrands::MoistureTransport::Gradient, &mMoistureTransport, _1, 0.));
 }
 
 DofVector<double> MultiPhysicsStructure::GradientMoistureTransportBoundary()
@@ -41,7 +41,7 @@ DofVector<double> MultiPhysicsStructure::GradientMoistureTransportBoundary()
     CheckDofNumbering();
     return SimpleAssembler(mDofInfo).BuildVector(
             mGrpCellsMTBoundary, {mDofRH, mDofWV},
-            std::bind(&MoistureTransportBoundaryIntegrand::Gradient, mMoistureTransportBoundary, _1, 0.));
+            std::bind(&MoistureTransportBoundaryIntegrand::Gradient, &mMoistureTransportBoundary, _1, 0.));
 }
 
 DofMatrixSparse<double> MultiPhysicsStructure::StiffnessMechanics()
@@ -49,7 +49,7 @@ DofMatrixSparse<double> MultiPhysicsStructure::StiffnessMechanics()
     CheckDofNumbering();
     return SimpleAssembler(mDofInfo).BuildMatrix(
             mGrpCellsMT, {mDofDisp},
-            std::bind(&Integrands::MultiPhysicsMomentumBalance<2>::Hessian0, mMPMomentumBalance, _1, 0.));
+            std::bind(&Integrands::MultiPhysicsMomentumBalance<2>::Hessian0, &mMPMomentumBalance, _1, 0.));
 }
 
 DofMatrixSparse<double> MultiPhysicsStructure::StiffnessMoistureTransport()
@@ -57,7 +57,7 @@ DofMatrixSparse<double> MultiPhysicsStructure::StiffnessMoistureTransport()
     CheckDofNumbering();
     return SimpleAssembler(mDofInfo).BuildMatrix(
             mGrpCellsMT, {mDofRH, mDofWV},
-            std::bind(&MoistureTransportIntegrand::Stiffness, mMoistureTransport, _1, 0.));
+            std::bind(&Integrands::MoistureTransport::Stiffness, &mMoistureTransport, _1, 0.));
 }
 
 DofMatrixSparse<double> MultiPhysicsStructure::StiffnessMoistureTransportBoundary()
@@ -65,14 +65,15 @@ DofMatrixSparse<double> MultiPhysicsStructure::StiffnessMoistureTransportBoundar
     CheckDofNumbering();
     return SimpleAssembler(mDofInfo).BuildMatrix(
             mGrpCellsMTBoundary, {mDofRH, mDofWV},
-            std::bind(&MoistureTransportBoundaryIntegrand::Stiffness, mMoistureTransportBoundary, _1, 0.));
+            std::bind(&MoistureTransportBoundaryIntegrand::Stiffness, &mMoistureTransportBoundary, _1, 0.));
 }
 
 DofMatrixSparse<double> MultiPhysicsStructure::DampingMoistureTransport()
 {
     CheckDofNumbering();
     return SimpleAssembler(mDofInfo).BuildMatrix(
-            mGrpCellsMT, {mDofRH, mDofWV}, std::bind(&MoistureTransportIntegrand::Damping, mMoistureTransport, _1, 0.));
+            mGrpCellsMT, {mDofRH, mDofWV},
+            std::bind(&Integrands::MoistureTransport::Damping, &mMoistureTransport, _1, 0.));
 }
 
 void MultiPhysicsStructure::CheckDofNumbering()

@@ -4,12 +4,15 @@
 #include "nuto/mechanics/cell/CellIpData.h"
 #include "nuto/mechanics/cell/CellData.h"
 
+
 namespace NuTo
 {
+class MTCoefficientInterface;
+
 namespace Integrands
 {
 
-template <typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
+
 class MoistureTransport
 {
     DofType mDofTypeWV;
@@ -18,9 +21,17 @@ class MoistureTransport
     double mRho_g_sat;
     double mPV;
 
+    std::unique_ptr<MTCoefficientInterface> mDCw = nullptr;
+    std::unique_ptr<MTCoefficientInterface> mDCg = nullptr;
+    std::unique_ptr<MTCoefficientInterface> mMeC = nullptr;
+    std::unique_ptr<MTCoefficientInterface> mWVEq = nullptr;
+
 public:
     //! @brief ctor
-    inline MoistureTransport(DofType dofTypeWV, DofType dofTypeRH, double rho_w, double rho_g_sat, double PV);
+    inline MoistureTransport(DofType dofTypeWV, DofType dofTypeRH, const MTCoefficientInterface& diffCoeffWV,
+                             const MTCoefficientInterface& diffCoeffRH, const MTCoefficientInterface& massExchCoeff,
+                             const MTCoefficientInterface& wvEquilibriumCoeff, double rho_w, double rho_g_sat,
+                             double PV);
 
 
     inline DofVector<double> Gradient(const CellIpData& cellIpData, double deltaT);

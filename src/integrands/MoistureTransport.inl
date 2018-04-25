@@ -1,6 +1,7 @@
 #pragma once
 #include "MoistureTransport.h"
 
+#include "integrands/MoistureTransportCoefficients.h"
 
 #define EXTRACTSHAREDVARS                                                                                              \
     const Eigen::VectorXd WV = cellIpData.NodeValueVector(mDofTypeWV); /*discretized water volume fraction*/           \
@@ -10,61 +11,64 @@
     const Eigen::MatrixXd Ng = cellIpData.N(mDofTypeRH); /*shape function of the gas phase*/                           \
     const Eigen::MatrixXd Bg = cellIpData.B(mDofTypeRH, Nabla::Gradient()); /* deriv. shape func. of the gas phase*/   \
     const double wv = (Nw * WV)[0]; /*scalar water volume fraction*/                                                   \
-    const double wv_dt = (Nw * cellIpData.NodeValueVector(mDofTypeWV,1))[0]; /*scalar water volume fraction vel.*/    \
+    const double wv_dt = (Nw * cellIpData.NodeValueVector(mDofTypeWV, 1))[0]; /*scalar water volume fraction vel.*/    \
     const double rh = (Ng * RH)[0]; /*scalar relative humidity*/                                                       \
-    const double rh_dt = (Ng * cellIpData.NodeValueVector(mDofTypeRH,1))[0]; /*scalar relative humidity vel.*/        \
-    const double mec = TMeC::value(wv, rh, wv_dt, rh_dt); /*mass exchange coefficient*/                                \
-    const double wveq = TWVEq::value(wv, rh, wv_dt, rh_dt); /*equilibrium water volume fraction*/
+    const double rh_dt = (Ng * cellIpData.NodeValueVector(mDofTypeRH, 1))[0]; /*scalar relative humidity vel.*/        \
+    const double mec = mMeC->value(wv, rh, wv_dt, rh_dt); /*mass exchange coefficient*/                                \
+    const double wveq = mWVEq->value(wv, rh, wv_dt, rh_dt); /*equilibrium water volume fraction*/
 
 #define EXTRACTGRADIENTVARS                                                                                            \
     EXTRACTSHAREDVARS                                                                                                  \
-    const double dcw = TDCw::value(wv, rh, wv_dt, rh_dt); /*diffusion coefficient of the water phase*/                 \
-    const double dcg = TDCg::value(wv, rh, wv_dt, rh_dt); /*diffusion coefficient of the gas phase*/
+    const double dcw = mDCw->value(wv, rh, wv_dt, rh_dt); /*diffusion coefficient of the water phase*/                 \
+    const double dcg = mDCg->value(wv, rh, wv_dt, rh_dt); /*diffusion coefficient of the gas phase*/
 
 #define EXTRACTSTIFFNESSVARS                                                                                           \
     EXTRACTGRADIENTVARS                                                                                                \
     const Eigen::MatrixXd Iw = Eigen::MatrixXd::Identity(WV.rows(), WV.rows()); /*identity matrix of the water phase*/ \
     const Eigen::MatrixXd Ig = Eigen::MatrixXd::Identity(RH.rows(), RH.rows()); /*identity matrix of the gas phase*/   \
     /*derivatives with the naming pattern VAR1_dVAR2*/                                                                 \
-    const double dcw_dwv = TDCw::d_WaterVolumeFraction(wv, rh, wv_dt, rh_dt);                                          \
-    const double dcw_drh = TDCw::d_RelativeHumidity(wv, rh, wv_dt, rh_dt);                                             \
-    const double dcg_dwv = TDCg::d_WaterVolumeFraction(wv, rh, wv_dt, rh_dt);                                          \
-    const double dcg_drh = TDCg::d_RelativeHumidity(wv, rh, wv_dt, rh_dt);                                             \
-    const double mec_dwv = TMeC::d_WaterVolumeFraction(wv, rh, wv_dt, rh_dt);                                          \
-    const double mec_drh = TMeC::d_RelativeHumidity(wv, rh, wv_dt, rh_dt);                                             \
-    const double wveq_dwv = TWVEq::d_WaterVolumeFraction(wv, rh, wv_dt, rh_dt);                                        \
-    const double wveq_drh = TWVEq::d_RelativeHumidity(wv, rh, wv_dt, rh_dt);
+    const double dcw_dwv = mDCw->d_WaterVolumeFraction(wv, rh, wv_dt, rh_dt);                                          \
+    const double dcw_drh = mDCw->d_RelativeHumidity(wv, rh, wv_dt, rh_dt);                                             \
+    const double dcg_dwv = mDCg->d_WaterVolumeFraction(wv, rh, wv_dt, rh_dt);                                          \
+    const double dcg_drh = mDCg->d_RelativeHumidity(wv, rh, wv_dt, rh_dt);                                             \
+    const double mec_dwv = mMeC->d_WaterVolumeFraction(wv, rh, wv_dt, rh_dt);                                          \
+    const double mec_drh = mMeC->d_RelativeHumidity(wv, rh, wv_dt, rh_dt);                                             \
+    const double wveq_dwv = mWVEq->d_WaterVolumeFraction(wv, rh, wv_dt, rh_dt);                                        \
+    const double wveq_drh = mWVEq->d_RelativeHumidity(wv, rh, wv_dt, rh_dt);
 
 #define EXTRACTDAMPINGVARS                                                                                             \
     EXTRACTSHAREDVARS                                                                                                  \
     const Eigen::MatrixXd GWV = Bw * WV; /*water volume graction gradient*/                                            \
     const Eigen::MatrixXd GRH = Bg * RH; /*relative humidity gradient*/                                                \
     /*derivatives with the naming pattern VAR1_dVAR2*/                                                                 \
-    const double dcw_dwv_dt = TDCw::d_WaterVolumeFraction_dt(wv, rh, wv_dt, rh_dt);                                    \
-    const double dcw_drh_dt = TDCw::d_RelativeHumidity_dt(wv, rh, wv_dt, rh_dt);                                       \
-    const double dcg_dwv_dt = TDCg::d_WaterVolumeFraction_dt(wv, rh, wv_dt, rh_dt);                                    \
-    const double dcg_drh_dt = TDCg::d_RelativeHumidity_dt(wv, rh, wv_dt, rh_dt);                                       \
-    const double mec_dwv_dt = TMeC::d_WaterVolumeFraction_dt(wv, rh, wv_dt, rh_dt);                                    \
-    const double mec_drh_dt = TMeC::d_RelativeHumidity_dt(wv, rh, wv_dt, rh_dt);                                       \
-    const double wveq_dwv_dt = TWVEq::d_WaterVolumeFraction_dt(wv, rh, wv_dt, rh_dt);                                  \
-    const double wveq_drh_dt = TWVEq::d_RelativeHumidity_dt(wv, rh, wv_dt, rh_dt);
+    const double dcw_dwv_dt = mDCw->d_WaterVolumeFraction_dt(wv, rh, wv_dt, rh_dt);                                    \
+    const double dcw_drh_dt = mDCw->d_RelativeHumidity_dt(wv, rh, wv_dt, rh_dt);                                       \
+    const double dcg_dwv_dt = mDCg->d_WaterVolumeFraction_dt(wv, rh, wv_dt, rh_dt);                                    \
+    const double dcg_drh_dt = mDCg->d_RelativeHumidity_dt(wv, rh, wv_dt, rh_dt);                                       \
+    const double mec_dwv_dt = mMeC->d_WaterVolumeFraction_dt(wv, rh, wv_dt, rh_dt);                                    \
+    const double mec_drh_dt = mMeC->d_RelativeHumidity_dt(wv, rh, wv_dt, rh_dt);                                       \
+    const double wveq_dwv_dt = mWVEq->d_WaterVolumeFraction_dt(wv, rh, wv_dt, rh_dt);                                  \
+    const double wveq_drh_dt = mWVEq->d_RelativeHumidity_dt(wv, rh, wv_dt, rh_dt);
 
 
-template <typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-NuTo::Integrands::MoistureTransport<TDCw, TDCg, TMeC, TWVEq>::MoistureTransport(DofType dofTypeWV, DofType dofTypeRH, double rho_w,
-        double rho_g_sat, double PV)
+NuTo::Integrands::MoistureTransport::MoistureTransport(DofType dofTypeWV, DofType dofTypeRH, const MTCoefficientInterface& diffCoeffWV,
+        const MTCoefficientInterface& diffCoeffRH, const MTCoefficientInterface& massExchCoeff,
+        const MTCoefficientInterface& wvEquilibriumCoeff, double rho_w, double rho_g_sat, double PV)
     : mDofTypeWV(dofTypeWV)
     , mDofTypeRH(dofTypeRH)
     , mRho_w(rho_w)
     , mRho_g_sat(rho_g_sat)
     , mPV(PV)
+    , mDCw(diffCoeffWV.Clone())
+    , mDCg(wvEquilibriumCoeff.Clone())
+    , mMeC(massExchCoeff.Clone())
+    , mWVEq(wvEquilibriumCoeff.Clone())
 {
 }
 
-template <typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
 NuTo::DofVector<double>
-NuTo::Integrands::MoistureTransport<TDCw, TDCg, TMeC, TWVEq>::Gradient(const NuTo::CellIpData& cellIpData,
-                                                                             double deltaT)
+NuTo::Integrands::MoistureTransport::Gradient(const NuTo::CellIpData& cellIpData,
+                                                                       double deltaT)
 {
     DofVector<double> gradient;
 
@@ -87,10 +91,9 @@ NuTo::Integrands::MoistureTransport<TDCw, TDCg, TMeC, TWVEq>::Gradient(const NuT
     return gradient;
 }
 
-template <typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
 NuTo::DofMatrix<double>
-NuTo::Integrands::MoistureTransport<TDCw, TDCg, TMeC, TWVEq>::Stiffness(const NuTo::CellIpData& cellIpData,
-                                                                              double deltaT)
+NuTo::Integrands::MoistureTransport::Stiffness(const NuTo::CellIpData& cellIpData,
+                                                                        double deltaT)
 {
     NuTo::DofMatrix<double> stiffness;
 
@@ -120,10 +123,8 @@ NuTo::Integrands::MoistureTransport<TDCw, TDCg, TMeC, TWVEq>::Stiffness(const Nu
     return stiffness;
 }
 
-template <typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
 NuTo::DofMatrix<double>
-NuTo::Integrands::MoistureTransport<TDCw, TDCg, TMeC, TWVEq>::Damping(const NuTo::CellIpData& cellIpData,
-                                                                            double deltaT)
+NuTo::Integrands::MoistureTransport::Damping(const NuTo::CellIpData& cellIpData, double deltaT)
 {
     NuTo::DofMatrix<double> damping;
 
@@ -152,9 +153,7 @@ NuTo::Integrands::MoistureTransport<TDCw, TDCg, TMeC, TWVEq>::Damping(const NuTo
     return damping;
 }
 
-template < typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-void NuTo::Integrands::MoistureTransport<TDCw, TDCg, TMeC, TWVEq>::CheckValuesValid(
-        double wv)
+inline void NuTo::Integrands::MoistureTransport::CheckValuesValid(double wv)
 {
     if (std::abs(mPV - wv) < 10e-9)
         throw Exception(

@@ -81,14 +81,15 @@ private:
     Group<CellInterface> grpCellsMT;
     Group<CellInterface> grpCellsMTBoundary;
     IntegrationTypeTensorProduct<1> integrationType = {3, eIntegrationMethod::GAUSS};
-    MoistureTransport<TDCw, TDCg, TMeC, TWVEq> integrandMoistureTransport;
+    MoistureTransport integrandMoistureTransport;
     MoistureTransportBoundary<TDim, TDCw, TDCg, TWVEq> mIntegrandMoistureTransportBoundary;
 };
 
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
 MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::MoistureTransportTest(double rho_w, double rho_g_sat, double PV)
-    : integrandMoistureTransport(dofWV, dofRH, rho_w, rho_g_sat, PV)
+    : integrandMoistureTransport(dofWV, dofRH, MTCoefficientConstant{1.}, MTCoefficientConstant{0.01},
+                                 MTCoefficientConstant{0.}, MTCoefficientConstant{0.1}, rho_w, rho_g_sat, PV)
     , mIntegrandMoistureTransportBoundary(dofWV, dofRH)
 {
 }
@@ -168,8 +169,7 @@ DofVector<double> MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::Gradient
 {
     CheckDofNumbering();
     return SimpleAssembler(dofInfo).BuildVector(
-            grpCellsMT, {dofRH, dofWV},
-            std::bind(&MoistureTransport<TDCw, TDCg, TMeC, TWVEq>::Gradient, integrandMoistureTransport, _1, 0.));
+            grpCellsMT, {dofRH, dofWV}, std::bind(&MoistureTransport::Gradient, &integrandMoistureTransport, _1, 0.));
 }
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
@@ -177,8 +177,7 @@ DofMatrixSparse<double> MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::St
 {
     CheckDofNumbering();
     return SimpleAssembler(dofInfo).BuildMatrix(
-            grpCellsMT, {dofRH, dofWV},
-            std::bind(&MoistureTransport<TDCw, TDCg, TMeC, TWVEq>::Stiffness, integrandMoistureTransport, _1, 0.));
+            grpCellsMT, {dofRH, dofWV}, std::bind(&MoistureTransport::Stiffness, &integrandMoistureTransport, _1, 0.));
 }
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
@@ -186,8 +185,7 @@ DofMatrixSparse<double> MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::Da
 {
     CheckDofNumbering();
     return SimpleAssembler(dofInfo).BuildMatrix(
-            grpCellsMT, {dofRH, dofWV},
-            std::bind(&MoistureTransport<TDCw, TDCg, TMeC, TWVEq>::Damping, integrandMoistureTransport, _1, 0.));
+            grpCellsMT, {dofRH, dofWV}, std::bind(&MoistureTransport::Damping, &integrandMoistureTransport, _1, 0.));
 }
 
 template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
