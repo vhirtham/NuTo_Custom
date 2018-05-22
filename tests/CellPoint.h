@@ -1,5 +1,9 @@
 #pragma once
 
+
+#include "nuto/mechanics/cell/CellIpData.h"
+#include "nuto/mechanics/cell/Jacobian.h"
+
 namespace NuTo
 {
 class CellPoint : public CellInterface
@@ -29,7 +33,7 @@ public:
         DofVector<double> result;
         CellData cellData(mElements, Id());
 
-        Jacobian jacobian(Eigen::VectorXd(), Eigen::MatrixXd(), 0);
+        Jacobian jacobian{Eigen::VectorXd(), Eigen::MatrixXd()};
         CellIpData cellipData(cellData, jacobian, Eigen::VectorXd(), 0);
         result += f(cellipData);
 
@@ -39,7 +43,7 @@ public:
     {
         DofMatrix<double> result;
         CellData cellData(mElements, Id());
-        Jacobian jacobian(Eigen::VectorXd(), Eigen::MatrixXd(), 0);
+        Jacobian jacobian{Eigen::VectorXd(), Eigen::MatrixXd()};
         CellIpData cellipData(cellData, jacobian, Eigen::VectorXd(), 0);
         result += f(cellipData);
 

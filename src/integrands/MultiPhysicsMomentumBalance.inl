@@ -74,7 +74,7 @@ DofMatrix<double> MultiPhysicsMomentumBalance<TDim>::Hessian0(const CellIpData& 
 {
     DofMatrix<double> hessian0;
 
-    BMatrixStrain B = cellIpData.B(mDofDisp, Nabla::Strain());
+    Eigen::MatrixXd B = cellIpData.B(mDofDisp, Nabla::Strain());
     hessian0(mDofDisp, mDofDisp) =
             B.transpose() * mLaw.Tangent(cellIpData.Apply(mDofDisp, Nabla::Strain()), deltaT, cellIpData.Ids()) * B;
 

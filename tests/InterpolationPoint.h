@@ -1,5 +1,7 @@
 #pragma once
 
+#include "nuto/mechanics/interpolation/InterpolationSimple.h"
+
 namespace NuTo
 {
 class InterpolationPoint : public InterpolationSimple
@@ -12,13 +14,12 @@ public:
         return std::make_unique<InterpolationPoint>(*this);
     }
 
-    virtual ShapeFunctions GetShapeFunctions(const NaturalCoords& naturalIpCoords) const override
+    virtual Eigen::VectorXd GetShapeFunctions(const NaturalCoords& naturalIpCoords) const override
     {
         return Eigen::VectorXd::Ones(1);
     }
 
-    virtual DerivativeShapeFunctionsNatural
-    GetDerivativeShapeFunctions(const NaturalCoords& naturalIpCoords) const override
+    virtual Eigen::MatrixXd GetDerivativeShapeFunctions(const NaturalCoords& naturalIpCoords) const override
     {
         throw Exception(__PRETTY_FUNCTION__, "Not implemented.");
     }
