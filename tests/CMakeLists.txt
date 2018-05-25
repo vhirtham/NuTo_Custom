@@ -7,5 +7,3 @@ addNuToTest(Shrinkage
     Tools
     )
 
-add_executable(testSomething
-    test.cpp)
