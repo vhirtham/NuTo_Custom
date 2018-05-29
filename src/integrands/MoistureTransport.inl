@@ -153,6 +153,11 @@ NuTo::Integrands::MoistureTransport::Damping(const NuTo::CellIpData& cellIpData,
     return damping;
 }
 
+NuTo::DofMatrix<double> NuTo::Integrands::MoistureTransport::Mass(const NuTo::CellIpData &cellIpData, double deltaT)
+{
+    throw Exception(__PRETTY_FUNCTION__,"Not implemented");
+}
+
 inline void NuTo::Integrands::MoistureTransport::CheckValuesValid(double wv)
 {
     if (std::abs(mPV - wv) < 10e-9)

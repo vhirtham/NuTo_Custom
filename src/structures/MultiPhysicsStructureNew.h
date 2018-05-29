@@ -34,7 +34,7 @@ class MultiPhysicsStructure
     std::vector<std::unique_ptr<CellInterface>> mCells;
 
     // integrands
-    std::vector<std::unique_ptr<IntegrandWrapperInterface>> mIntegrands;
+    std::vector<std::unique_ptr<IntegrandWrapperInterface<double>>> mIntegrands;
 
 public:
     MultiPhysicsStructure(MeshFem& mesh);
@@ -68,7 +68,36 @@ public:
     void SetNodalValues(const DofType& dofType, std::function<void(NodeSimple&)> valueFunction);
     void SetNumTimeDerivatives(int numTimeDerivatives);
 
+    Eigen::VectorXd AssembleResidual(
+            std::vector<DofType> dofTypes,
+            std::vector<std::pair<Group<CellInterface>*, IntegrandWrapperInterface<double>*>> cellGroupIntegrandPairs);
+
+    Eigen::SparseMatrix<double> AssembleStiffness(
+            std::vector<DofType> dofTypes,
+            std::vector<std::pair<Group<CellInterface>*, IntegrandWrapperInterface<double>*>> cellGroupIntegrandPairs);
+
+    Eigen::SparseMatrix<double> AssembleDamping(
+            std::vector<DofType> dofTypes,
+            std::vector<std::pair<Group<CellInterface>*, IntegrandWrapperInterface<double>*>> cellGroupIntegrandPairs);
+
+    Eigen::SparseMatrix<double> AssembleMass(
+            std::vector<DofType> dofTypes,
+            std::vector<std::pair<Group<CellInterface>*, IntegrandWrapperInterface<double>*>> cellGroupIntegrandPairs);
+
+    Eigen::VectorXd ExtractDofs(std::vector<DofType> dofs, int instance);
+    void MergeDofs(Eigen::VectorXd values, std::vector<DofType> dofs, int instance);
+
 private:
     static int GetCellId();
+
+    Eigen::SparseMatrix<double> AssembleMatrix(
+            std::vector<DofType> dofTypes,
+            std::vector<std::pair<Group<CellInterface>*, IntegrandWrapperInterface<double>*>> cellGroupIntegrandPairs,
+            DofMatrix<double> (IntegrandWrapperInterface<double>::*matrixFunction)(const CellIpData&, double));
+
+    DofVector<double> CreateGlobalDofVector(std::vector<DofType> dofs);
+
+
+    bool IsDofNumberingDone() const;
 };
 }

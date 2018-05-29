@@ -27,6 +27,8 @@ class MoistureTransport
     std::unique_ptr<MTCoefficientInterface> mWVEq = nullptr;
 
 public:
+    MoistureTransport(MoistureTransport&&) = default;
+
     //! @brief ctor
     inline MoistureTransport(DofType dofTypeWV, DofType dofTypeRH, const MTCoefficientInterface& diffCoeffWV,
                              const MTCoefficientInterface& diffCoeffRH, const MTCoefficientInterface& massExchCoeff,
@@ -39,6 +41,8 @@ public:
     inline DofMatrix<double> Stiffness(const CellIpData& cellIpData, double deltaT);
 
     inline DofMatrix<double> Damping(const CellIpData& cellIpData, double deltaT);
+
+    inline DofMatrix<double> Mass(const CellIpData& cellIpData, double deltaT);
 
     void CheckValuesValid(double wv);
 };
