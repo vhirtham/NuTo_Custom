@@ -61,6 +61,8 @@ public:
     Group<CellInterface> GetAllCells() const;
 
     const DofInfo& GetDofInfo() const;
+    Constraint::Constraints& GetConstraints();
+    MeshFem& GetMesh();
 
     void RenumberDofs();
 

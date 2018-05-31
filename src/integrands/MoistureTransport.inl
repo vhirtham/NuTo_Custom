@@ -50,8 +50,10 @@
     const double wveq_dwv_dt = mWVEq->d_WaterVolumeFraction_dt(wv, rh, wv_dt, rh_dt);                                  \
     const double wveq_drh_dt = mWVEq->d_RelativeHumidity_dt(wv, rh, wv_dt, rh_dt);
 
+namespace NuTo
+{
 
-NuTo::Integrands::MoistureTransport::MoistureTransport(DofType dofTypeWV, DofType dofTypeRH, const MTCoefficientInterface& diffCoeffWV,
+Integrands::MoistureTransport::MoistureTransport(DofType dofTypeWV, DofType dofTypeRH, const MTCoefficientInterface& diffCoeffWV,
         const MTCoefficientInterface& diffCoeffRH, const MTCoefficientInterface& massExchCoeff,
         const MTCoefficientInterface& wvEquilibriumCoeff, double rho_w, double rho_g_sat, double PV)
     : mDofTypeWV(dofTypeWV)
@@ -66,8 +68,8 @@ NuTo::Integrands::MoistureTransport::MoistureTransport(DofType dofTypeWV, DofTyp
 {
 }
 
-NuTo::DofVector<double>
-NuTo::Integrands::MoistureTransport::Gradient(const NuTo::CellIpData& cellIpData,
+DofVector<double>
+Integrands::MoistureTransport::Gradient(const CellIpData& cellIpData,
                                                                        double deltaT)
 {
     DofVector<double> gradient;
@@ -91,11 +93,11 @@ NuTo::Integrands::MoistureTransport::Gradient(const NuTo::CellIpData& cellIpData
     return gradient;
 }
 
-NuTo::DofMatrix<double>
-NuTo::Integrands::MoistureTransport::Stiffness(const NuTo::CellIpData& cellIpData,
+DofMatrix<double>
+Integrands::MoistureTransport::Stiffness(const CellIpData& cellIpData,
                                                                         double deltaT)
 {
-    NuTo::DofMatrix<double> stiffness;
+    DofMatrix<double> stiffness;
 
     // variable meanings can be found in macro definition at the beginning of the file
     EXTRACTSTIFFNESSVARS
@@ -123,10 +125,10 @@ NuTo::Integrands::MoistureTransport::Stiffness(const NuTo::CellIpData& cellIpDat
     return stiffness;
 }
 
-NuTo::DofMatrix<double>
-NuTo::Integrands::MoistureTransport::Damping(const NuTo::CellIpData& cellIpData, double deltaT)
+DofMatrix<double>
+Integrands::MoistureTransport::Damping(const CellIpData& cellIpData, double deltaT)
 {
-    NuTo::DofMatrix<double> damping;
+    DofMatrix<double> damping;
 
     // variable meanings can be found in macro definition at the beginning of the file
     EXTRACTDAMPINGVARS
@@ -153,19 +155,19 @@ NuTo::Integrands::MoistureTransport::Damping(const NuTo::CellIpData& cellIpData,
     return damping;
 }
 
-NuTo::DofMatrix<double> NuTo::Integrands::MoistureTransport::Mass(const NuTo::CellIpData &cellIpData, double deltaT)
+DofMatrix<double> Integrands::MoistureTransport::Mass(const CellIpData &cellIpData, double deltaT)
 {
     throw Exception(__PRETTY_FUNCTION__,"Not implemented");
 }
 
-inline void NuTo::Integrands::MoistureTransport::CheckValuesValid(double wv)
+inline void Integrands::MoistureTransport::CheckValuesValid(double wv)
 {
     if (std::abs(mPV - wv) < 10e-9)
         throw Exception(
                 __PRETTY_FUNCTION__,
                 "Poresvolume is completly occupied by water. Gas transport equation will produce undefined behaviour!");
 }
-
+}
 
 #undef EXTRACTDAMPINGVARS
 #undef EXTRACTSTIFFNESSVARS

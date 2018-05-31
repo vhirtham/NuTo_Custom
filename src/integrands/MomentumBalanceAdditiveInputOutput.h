@@ -36,13 +36,13 @@ public:
     inline DofMatrix<double> Hessian2(const CellIpData& cellIpData, double deltaT);
 
 
-    Eigen::VectorXd Strain(const NuTo::CellIpData& cellIpData, double deltaT);
-    Eigen::VectorXd StrainMechanics(const NuTo::CellIpData& cellIpData, double deltaT);
-    Eigen::VectorXd StrainAdditive(const NuTo::CellIpData& cellIpData, double deltaT);
+    Eigen::VectorXd Strain(const NuTo::CellIpData& cellIpData, double deltaT) const;
+    Eigen::VectorXd StrainMechanics(const NuTo::CellIpData& cellIpData, double deltaT) const;
+    Eigen::VectorXd StrainAdditive(const NuTo::CellIpData& cellIpData, double deltaT) const;
 
-    Eigen::VectorXd Stress(const NuTo::CellIpData& cellIpData, double deltaT);
-    Eigen::VectorXd StressMechanics(const NuTo::CellIpData& cellIpData, double deltaT);
-    Eigen::VectorXd StressAdditive(const NuTo::CellIpData& cellIpData, double deltaT);
+    Eigen::VectorXd Stress(const NuTo::CellIpData& cellIpData, double deltaT) const;
+    Eigen::VectorXd StressMechanics(const NuTo::CellIpData& cellIpData, double deltaT) const;
+    Eigen::VectorXd StressAdditive(const NuTo::CellIpData& cellIpData, double deltaT) const;
 };
 } // namespace Integrands
 } // namespace NuTo

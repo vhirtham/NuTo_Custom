@@ -78,6 +78,11 @@ public:
                                                       std::forward<TAdditionalParams>(additionalParams)...);
     }
 
+    TIntegrand& GetIntegrand()
+    {
+        return mIntegrand;
+    }
+
 private:
     template <typename TFuncPtr>
     void CheckNullPtr(TFuncPtr funcPtr, std::string functionName)

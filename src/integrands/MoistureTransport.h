@@ -15,6 +15,9 @@ namespace Integrands
 
 class MoistureTransport
 {
+    friend class MoistureTransportBoundary;
+
+
     DofType mDofTypeWV;
     DofType mDofTypeRH;
     double mRho_w;

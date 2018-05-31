@@ -6,9 +6,9 @@ L = 47;
 CX = W/2;
 CY = H/2;
 
-SB = (W+H) / 2 /20;
-SI = (W+H) / 2 /40;
-SIC = (W+H) / 2 /10;
+SB = (W+H) / 2 /30;
+SI = (W+H) / 2 /30;
+SIC = (W+H) / 2 /2;
 
 Point(1)  = {   0.0,     0.0,   0.0,   SB};
 Point(2)  = {   0.0,       H,   0.0,   SB};
@@ -267,7 +267,15 @@ Volume(310) = {305};
 Volume(311) = {306};
 
 
-Physical Surface("Boundary") = {200,201,202,203};
+// Physical Groups -------------------------------------------------------
+
+Physical Surface("LeftMatrixBoundary") = {200};
+Physical Surface("RightMatrixBoundary") = {202};
+Physical Surface("TopMatrixBoundary") = {201};
+Physical Surface("BottomMatrixBoundary") = {203};
+Physical Surface("FrontMatrixBoundary") = {239};
+Physical Surface("BackMatrixBoundary") = {240};
+
 Physical Volume("Matrix") = {301};
 Physical Volume("Granite") = {307, 308, 309, 310, 311};
 

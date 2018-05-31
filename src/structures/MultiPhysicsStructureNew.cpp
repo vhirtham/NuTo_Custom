@@ -50,6 +50,15 @@ const DofInfo& MultiPhysicsStructure::GetDofInfo() const
     return mDofInfo;
 }
 
+Constraint::Constraints& MultiPhysicsStructure::GetConstraints()
+{
+    return mConstraints;
+}
+
+MeshFem& MultiPhysicsStructure::GetMesh()
+{
+    return mMesh;
+}
 
 void MultiPhysicsStructure::RenumberDofs()
 {

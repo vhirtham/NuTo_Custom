@@ -23,14 +23,14 @@ public:
     inline Shrinkage(DofType dofTypeDisp, DofType dofTypeWV, DofType dofTypeRH, double weightingFactor);
 
 
-    inline Eigen::VectorXd Stress(const CellIpData& cellIpData, double deltaT);
-    inline Eigen::VectorXd Strain(const CellIpData& cellIpData, double deltaT);
+    inline Eigen::VectorXd Stress(const CellIpData& cellIpData, double deltaT) const;
+    inline Eigen::VectorXd Strain(const CellIpData& cellIpData, double deltaT) const;
 
 
 private:
-    inline double CapillaryPressure(double rh);
+    inline double CapillaryPressure(double rh) const;
 
-    inline Eigen::VectorXd ComponentVector();
+    inline Eigen::VectorXd ComponentVector() const;
 };
 }
 }

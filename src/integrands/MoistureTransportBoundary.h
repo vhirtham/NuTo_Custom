@@ -5,28 +5,35 @@
 #include "nuto/mechanics/dofs/DofMatrix.h"
 #include "nuto/mechanics/dofs/DofVector.h"
 
+#include "integrands/MoistureTransportCoefficients.h"
+
 namespace NuTo
 {
 namespace Integrands
 {
-template <int TDim, typename TDCw, typename TDCg, typename TWVEq>
+class MoistureTransport;
+
 class MoistureTransportBoundary
 {
-    double mExchangeRateWV = 2.;
-    double mExchangeRateRH = 2.;
+    const MoistureTransport& mMoistureTransportIntegrand;
     DofType mDofTypeWV;
     DofType mDofTypeRH;
+    double mExchangeRateWV = 0.;
+    double mExchangeRateRH = 0.;
+    double mEnvRH = 1.0;
 
 public:
-    inline MoistureTransportBoundary(DofType dofTypeWV, DofType dofTypeRH)
-        : mDofTypeWV(dofTypeWV)
-        , mDofTypeRH(dofTypeRH){};
+    MoistureTransportBoundary(MoistureTransportBoundary&&) = default;
+
+    inline MoistureTransportBoundary(const MoistureTransport& moistureTransportIntegrand, DofType dofTypeWV,
+                                     DofType dofTypeRH, double massExchangeRateWV, double massExchangeRateRH,
+                                     double initialEnvironmentalRH);
 
     inline DofVector<double> Gradient(const CellIpData& cellIpData, double deltaT);
 
     inline DofMatrix<double> Stiffness(const CellIpData& cellIpData, double deltaT);
 
-    inline DofMatrix<double> Damping(const CellIpData& cellIpData, double deltaT);
+    void SetEnvironmentalRelativeHumidity(double envRH);
 };
 }
 }

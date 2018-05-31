@@ -64,7 +64,7 @@ DofMatrix<double> MomentumBalanceAdditiveInputOutput<TDim, TAdditiveIOIntegrand>
 
 template <int TDim, class TAdditiveIOIntegrand>
 Eigen::VectorXd MomentumBalanceAdditiveInputOutput<TDim, TAdditiveIOIntegrand>::Strain(const CellIpData& cellIpData,
-                                                                                       double deltaT)
+                                                                                       double deltaT) const
 {
     return cellIpData.Apply(mDofDisplacement, Nabla::Strain());
 }
@@ -72,7 +72,7 @@ Eigen::VectorXd MomentumBalanceAdditiveInputOutput<TDim, TAdditiveIOIntegrand>::
 template <int TDim, class TAdditiveIOIntegrand>
 Eigen::VectorXd
 MomentumBalanceAdditiveInputOutput<TDim, TAdditiveIOIntegrand>::StrainMechanics(const CellIpData& cellIpData,
-                                                                                double deltaT)
+                                                                                double deltaT) const
 {
     return Strain(cellIpData, deltaT) - StrainAdditive(cellIpData, deltaT);
 }
@@ -80,14 +80,14 @@ MomentumBalanceAdditiveInputOutput<TDim, TAdditiveIOIntegrand>::StrainMechanics(
 template <int TDim, class TAdditiveIOIntegrand>
 Eigen::VectorXd
 MomentumBalanceAdditiveInputOutput<TDim, TAdditiveIOIntegrand>::StrainAdditive(const CellIpData& cellIpData,
-                                                                               double deltaT)
+                                                                               double deltaT) const
 {
     return mAIOIntegrand.Strain(cellIpData, deltaT);
 }
 
 template <int TDim, class TAdditiveIOIntegrand>
 Eigen::VectorXd MomentumBalanceAdditiveInputOutput<TDim, TAdditiveIOIntegrand>::Stress(const CellIpData& cellIpData,
-                                                                                       double deltaT)
+                                                                                       double deltaT) const
 {
     return StressMechanics(cellIpData, deltaT) + StressAdditive(cellIpData, deltaT);
 }
@@ -95,7 +95,7 @@ Eigen::VectorXd MomentumBalanceAdditiveInputOutput<TDim, TAdditiveIOIntegrand>::
 template <int TDim, class TAdditiveIOIntegrand>
 Eigen::VectorXd
 MomentumBalanceAdditiveInputOutput<TDim, TAdditiveIOIntegrand>::StressMechanics(const CellIpData& cellIpData,
-                                                                                double deltaT)
+                                                                                double deltaT) const
 {
     return mMechanicsLaw->Stress(StrainMechanics(cellIpData, deltaT), deltaT, cellIpData.Ids());
 }
@@ -103,7 +103,7 @@ MomentumBalanceAdditiveInputOutput<TDim, TAdditiveIOIntegrand>::StressMechanics(
 template <int TDim, class TAdditiveIOIntegrand>
 Eigen::VectorXd
 MomentumBalanceAdditiveInputOutput<TDim, TAdditiveIOIntegrand>::StressAdditive(const CellIpData& cellIpData,
-                                                                               double deltaT)
+                                                                               double deltaT) const
 {
     return mAIOIntegrand.Stress(cellIpData, deltaT);
 }

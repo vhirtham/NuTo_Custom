@@ -20,7 +20,7 @@ Shrinkage<TDim>::Shrinkage(DofType dofTypeDisp, DofType dofTypeWV, DofType dofTy
 
 
 template <int TDim>
-Eigen::VectorXd Shrinkage<TDim>::Stress(const CellIpData& cellIpData, double deltaT)
+Eigen::VectorXd Shrinkage<TDim>::Stress(const CellIpData& cellIpData, double deltaT) const
 {
     const Eigen::VectorXd WV = cellIpData.NodeValueVector(mDofWV);
     const Eigen::MatrixXd Nw = cellIpData.N(mDofWV);
@@ -34,7 +34,7 @@ Eigen::VectorXd Shrinkage<TDim>::Stress(const CellIpData& cellIpData, double del
 }
 
 template <int TDim>
-Eigen::VectorXd Shrinkage<TDim>::Strain(const CellIpData& cellIpData, double deltaT)
+Eigen::VectorXd Shrinkage<TDim>::Strain(const CellIpData& cellIpData, double deltaT) const
 {
     const Eigen::VectorXd WV = cellIpData.NodeValueVector(mDofWV);
     const Eigen::MatrixXd Nw = cellIpData.N(mDofWV);
@@ -55,7 +55,7 @@ Eigen::VectorXd Shrinkage<TDim>::Strain(const CellIpData& cellIpData, double del
 
 
 template <int TDim>
-double Shrinkage<TDim>::CapillaryPressure(double rh)
+double Shrinkage<TDim>::CapillaryPressure(double rh) const
 {
     double p_g = 0.;
     double p_0 = 0.;
@@ -68,19 +68,19 @@ double Shrinkage<TDim>::CapillaryPressure(double rh)
 }
 
 template <>
-inline Eigen::VectorXd Shrinkage<1>::ComponentVector()
+inline Eigen::VectorXd Shrinkage<1>::ComponentVector() const
 {
     return Eigen::VectorXd::Ones(1.);
 }
 
 template <>
-inline Eigen::VectorXd Shrinkage<2>::ComponentVector()
+inline Eigen::VectorXd Shrinkage<2>::ComponentVector() const
 {
     return (Eigen::VectorXd(3) << 1., 1., 0.).finished();
 }
 
 template <>
-inline Eigen::VectorXd Shrinkage<3>::ComponentVector()
+inline Eigen::VectorXd Shrinkage<3>::ComponentVector() const
 {
     return (Eigen::VectorXd(6) << 1., 1., 1., 0., 0., 0.).finished();
 }

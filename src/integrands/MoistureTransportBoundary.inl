@@ -1,11 +1,24 @@
 #pragma once
 
 #include "MoistureTransportBoundary.h"
+#include "MoistureTransport.h"
 
-template <int TDim, typename TDCw, typename TDCg, typename TWVEq>
-NuTo::DofVector<double>
-NuTo::Integrands::MoistureTransportBoundary<TDim, TDCw, TDCg, TWVEq>::Gradient(const NuTo::CellIpData& cellIpData,
-                                                                               double deltaT)
+namespace NuTo
+{
+
+Integrands::MoistureTransportBoundary::MoistureTransportBoundary(
+        const Integrands::MoistureTransport& moistureTransportIntegrand, DofType dofTypeWV, DofType dofTypeRH,
+        double massExchangeRateWV, double massExchangeRateRH, double initialEnvironmentalRH)
+    : mMoistureTransportIntegrand{moistureTransportIntegrand}
+    , mDofTypeWV{dofTypeWV}
+    , mDofTypeRH{dofTypeRH}
+    , mExchangeRateWV{massExchangeRateWV}
+    , mExchangeRateRH{massExchangeRateRH}
+    , mEnvRH{initialEnvironmentalRH}
+{
+}
+
+DofVector<double> Integrands::MoistureTransportBoundary::Gradient(const CellIpData& cellIpData, double deltaT)
 {
     const Eigen::VectorXd WV = cellIpData.NodeValueVector(mDofTypeWV);
     const Eigen::MatrixXd Nw = cellIpData.N(mDofTypeWV);
@@ -14,19 +27,17 @@ NuTo::Integrands::MoistureTransportBoundary<TDim, TDCw, TDCg, TWVEq>::Gradient(c
     const double wv = (Nw * WV)[0];
     const double rh = (Ng * RH)[0];
 
-    const double wveq = TWVEq::value(0., 0.4, 0., 0.);
+    const double wveq = mMoistureTransportIntegrand.mWVEq.get()->value(0., mEnvRH, 0., 0.);
+
     DofVector<double> gradient;
     gradient[mDofTypeWV] = -mExchangeRateWV * (wv - wveq) * Nw.transpose();
-    gradient[mDofTypeRH] = -mExchangeRateRH * (rh - 0.4) * Ng.transpose();
+    gradient[mDofTypeRH] = -mExchangeRateRH * (rh - mEnvRH) * Ng.transpose();
 
     return gradient;
 }
 
 
-template <int TDim, typename TDCw, typename TDCg, typename TWVEq>
-NuTo::DofMatrix<double>
-NuTo::Integrands::MoistureTransportBoundary<TDim, TDCw, TDCg, TWVEq>::Stiffness(const NuTo::CellIpData& cellIpData,
-                                                                                double deltaT)
+DofMatrix<double> Integrands::MoistureTransportBoundary::Stiffness(const CellIpData& cellIpData, double deltaT)
 {
     const Eigen::VectorXd WV = cellIpData.NodeValueVector(mDofTypeWV);
     const Eigen::MatrixXd Nw = cellIpData.N(mDofTypeWV);
@@ -41,4 +52,10 @@ NuTo::Integrands::MoistureTransportBoundary<TDim, TDCw, TDCg, TWVEq>::Stiffness(
     stiffness(mDofTypeRH, mDofTypeRH) = -mExchangeRateRH * Ng.transpose() * Ng;
 
     return stiffness;
+}
+
+void Integrands::MoistureTransportBoundary::SetEnvironmentalRelativeHumidity(double envRH)
+{
+    mEnvRH = envRH;
+}
 }
