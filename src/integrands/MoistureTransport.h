@@ -33,23 +33,20 @@ public:
     MoistureTransport(MoistureTransport&&) = default;
 
     //! @brief ctor
-    inline MoistureTransport(DofType dofTypeWV, DofType dofTypeRH, const MTCoefficientInterface& diffCoeffWV,
-                             const MTCoefficientInterface& diffCoeffRH, const MTCoefficientInterface& massExchCoeff,
-                             const MTCoefficientInterface& wvEquilibriumCoeff, double rho_w, double rho_g_sat,
-                             double PV);
+    MoistureTransport(DofType dofTypeWV, DofType dofTypeRH, const MTCoefficientInterface& diffCoeffWV,
+                      const MTCoefficientInterface& diffCoeffRH, const MTCoefficientInterface& massExchCoeff,
+                      const MTCoefficientInterface& wvEquilibriumCoeff, double rho_w, double rho_g_sat, double PV);
 
 
-    inline DofVector<double> Gradient(const CellIpData& cellIpData, double deltaT);
+    DofVector<double> Gradient(const CellIpData& cellIpData, double deltaT);
 
-    inline DofMatrix<double> Stiffness(const CellIpData& cellIpData, double deltaT);
+    DofMatrix<double> Stiffness(const CellIpData& cellIpData, double deltaT);
 
-    inline DofMatrix<double> Damping(const CellIpData& cellIpData, double deltaT);
+    DofMatrix<double> Damping(const CellIpData& cellIpData, double deltaT);
 
-    inline DofMatrix<double> Mass(const CellIpData& cellIpData, double deltaT);
+    DofMatrix<double> Mass(const CellIpData& cellIpData, double deltaT);
 
     void CheckValuesValid(double wv);
 };
 }
 }
-
-#include "MoistureTransport.inl"

@@ -25,17 +25,14 @@ class MoistureTransportBoundary
 public:
     MoistureTransportBoundary(MoistureTransportBoundary&&) = default;
 
-    inline MoistureTransportBoundary(const MoistureTransport& moistureTransportIntegrand, DofType dofTypeWV,
-                                     DofType dofTypeRH, double massExchangeRateWV, double massExchangeRateRH,
-                                     double initialEnvironmentalRH);
+    MoistureTransportBoundary(const MoistureTransport& moistureTransportIntegrand, DofType dofTypeWV, DofType dofTypeRH,
+                              double massExchangeRateWV, double massExchangeRateRH, double initialEnvironmentalRH);
 
-    inline DofVector<double> Gradient(const CellIpData& cellIpData, double deltaT);
+    DofVector<double> Gradient(const CellIpData& cellIpData, double deltaT);
 
-    inline DofMatrix<double> Stiffness(const CellIpData& cellIpData, double deltaT);
+    DofMatrix<double> Stiffness(const CellIpData& cellIpData, double deltaT);
 
     void SetEnvironmentalRelativeHumidity(double envRH);
 };
 }
 }
-
-#include "MoistureTransportBoundary.inl"

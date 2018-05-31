@@ -1,6 +1,7 @@
-#add_library(CustomIntegrands
-#    integrands/MoistureTransport.cpp
-#    )
+addLib(CustomIntegrands
+    integrands/MoistureTransport.cpp
+    integrands/MoistureTransportBoundary.cpp
+    )
 
 
 #target_link_libraries(CustomIntegrands

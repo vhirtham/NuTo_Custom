@@ -1,5 +1,3 @@
-#pragma once
-
 #include "MoistureTransportBoundary.h"
 #include "MoistureTransport.h"
 

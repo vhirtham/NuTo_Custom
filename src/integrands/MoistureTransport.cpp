@@ -1,4 +1,3 @@
-#pragma once
 #include "MoistureTransport.h"
 
 #include "integrands/MoistureTransportCoefficients.h"
@@ -53,9 +52,12 @@
 namespace NuTo
 {
 
-Integrands::MoistureTransport::MoistureTransport(DofType dofTypeWV, DofType dofTypeRH, const MTCoefficientInterface& diffCoeffWV,
-        const MTCoefficientInterface& diffCoeffRH, const MTCoefficientInterface& massExchCoeff,
-        const MTCoefficientInterface& wvEquilibriumCoeff, double rho_w, double rho_g_sat, double PV)
+Integrands::MoistureTransport::MoistureTransport(DofType dofTypeWV, DofType dofTypeRH,
+                                                 const MTCoefficientInterface& diffCoeffWV,
+                                                 const MTCoefficientInterface& diffCoeffRH,
+                                                 const MTCoefficientInterface& massExchCoeff,
+                                                 const MTCoefficientInterface& wvEquilibriumCoeff, double rho_w,
+                                                 double rho_g_sat, double PV)
     : mDofTypeWV(dofTypeWV)
     , mDofTypeRH(dofTypeRH)
     , mRho_w(rho_w)
@@ -68,9 +70,7 @@ Integrands::MoistureTransport::MoistureTransport(DofType dofTypeWV, DofType dofT
 {
 }
 
-DofVector<double>
-Integrands::MoistureTransport::Gradient(const CellIpData& cellIpData,
-                                                                       double deltaT)
+DofVector<double> Integrands::MoistureTransport::Gradient(const CellIpData& cellIpData, double deltaT)
 {
     DofVector<double> gradient;
 
@@ -93,9 +93,7 @@ Integrands::MoistureTransport::Gradient(const CellIpData& cellIpData,
     return gradient;
 }
 
-DofMatrix<double>
-Integrands::MoistureTransport::Stiffness(const CellIpData& cellIpData,
-                                                                        double deltaT)
+DofMatrix<double> Integrands::MoistureTransport::Stiffness(const CellIpData& cellIpData, double deltaT)
 {
     DofMatrix<double> stiffness;
 
@@ -125,8 +123,7 @@ Integrands::MoistureTransport::Stiffness(const CellIpData& cellIpData,
     return stiffness;
 }
 
-DofMatrix<double>
-Integrands::MoistureTransport::Damping(const CellIpData& cellIpData, double deltaT)
+DofMatrix<double> Integrands::MoistureTransport::Damping(const CellIpData& cellIpData, double deltaT)
 {
     DofMatrix<double> damping;
 
@@ -155,9 +152,9 @@ Integrands::MoistureTransport::Damping(const CellIpData& cellIpData, double delt
     return damping;
 }
 
-DofMatrix<double> Integrands::MoistureTransport::Mass(const CellIpData &cellIpData, double deltaT)
+DofMatrix<double> Integrands::MoistureTransport::Mass(const CellIpData& cellIpData, double deltaT)
 {
-    throw Exception(__PRETTY_FUNCTION__,"Not implemented");
+    throw Exception(__PRETTY_FUNCTION__, "Not implemented");
 }
 
 inline void Integrands::MoistureTransport::CheckValuesValid(double wv)
