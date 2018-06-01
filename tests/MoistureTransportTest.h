@@ -29,7 +29,6 @@ using namespace NuTo::Integrands;
 using namespace std::placeholders;
 
 
-template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
 class MoistureTransportTest
 {
 public:
@@ -82,22 +81,19 @@ private:
     Group<CellInterface> grpCellsMTBoundary;
     IntegrationTypeTensorProduct<1> integrationType = {3, eIntegrationMethod::GAUSS};
     MoistureTransport integrandMoistureTransport;
-    MoistureTransportBoundary<TDim, TDCw, TDCg, TWVEq> mIntegrandMoistureTransportBoundary;
+    MoistureTransportBoundary mIntegrandMoistureTransportBoundary;
 };
 
 
-template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::MoistureTransportTest(double rho_w, double rho_g_sat, double PV)
+MoistureTransportTest::MoistureTransportTest(double rho_w, double rho_g_sat, double PV)
     : integrandMoistureTransport(dofWV, dofRH, MTCoefficientConstant{1.}, MTCoefficientConstant{0.01},
                                  MTCoefficientConstant{0.}, MTCoefficientConstant{0.1}, rho_w, rho_g_sat, PV)
-    , mIntegrandMoistureTransportBoundary(dofWV, dofRH)
+    , mIntegrandMoistureTransportBoundary(integrandMoistureTransport, dofWV, dofRH, 1., 1., 0.4)
 {
 }
 
-template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-void MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::CreateUnitMesh(int numElements,
-                                                                          const InterpolationSimple& interpolationWVArg,
-                                                                          const InterpolationSimple& interpolationRHArg)
+void MoistureTransportTest::CreateUnitMesh(int numElements, const InterpolationSimple& interpolationWVArg,
+                                           const InterpolationSimple& interpolationRHArg)
 {
     // mesh creation
     mMesh = UnitMeshFem::CreateLines(numElements);
@@ -116,7 +112,7 @@ void MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::CreateUnitMesh(int nu
     // set nodal values to 100% RH and equilibium state
     for (NodeSimple& node : mMesh.NodesTotal(dofWV))
     {
-        node.SetValue(0, TWVEq::value(0., 1., 0., 0.));
+        node.SetValue(0, 0.01, 0);
         node.SetValue(0, 0., 1);
         node.SetValue(0, 0., 2);
     }
@@ -164,51 +160,44 @@ void MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::CreateUnitMesh(int nu
 }
 
 
-template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-DofVector<double> MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::Gradient()
+DofVector<double> MoistureTransportTest::Gradient()
 {
     CheckDofNumbering();
     return SimpleAssembler(dofInfo).BuildVector(
             grpCellsMT, {dofRH, dofWV}, std::bind(&MoistureTransport::Gradient, &integrandMoistureTransport, _1, 0.));
 }
 
-template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-DofMatrixSparse<double> MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::Stiffness()
+DofMatrixSparse<double> MoistureTransportTest::Stiffness()
 {
     CheckDofNumbering();
     return SimpleAssembler(dofInfo).BuildMatrix(
             grpCellsMT, {dofRH, dofWV}, std::bind(&MoistureTransport::Stiffness, &integrandMoistureTransport, _1, 0.));
 }
 
-template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-DofMatrixSparse<double> MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::Damping()
+DofMatrixSparse<double> MoistureTransportTest::Damping()
 {
     CheckDofNumbering();
     return SimpleAssembler(dofInfo).BuildMatrix(
             grpCellsMT, {dofRH, dofWV}, std::bind(&MoistureTransport::Damping, &integrandMoistureTransport, _1, 0.));
 }
 
-template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-DofVector<double> MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::GradientBoundary()
+DofVector<double> MoistureTransportTest::GradientBoundary()
 {
     CheckDofNumbering();
-    return SimpleAssembler(dofInfo).BuildVector(grpCellsMTBoundary, {dofRH, dofWV},
-                                                std::bind(&MoistureTransportBoundary<TDim, TDCw, TDCg, TWVEq>::Gradient,
-                                                          mIntegrandMoistureTransportBoundary, _1, 0.));
+    return SimpleAssembler(dofInfo).BuildVector(
+            grpCellsMTBoundary, {dofRH, dofWV},
+            std::bind(&MoistureTransportBoundary::Gradient, &mIntegrandMoistureTransportBoundary, _1, 0.));
 }
 
-template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-DofMatrixSparse<double> MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::StiffnessBoundary()
+DofMatrixSparse<double> MoistureTransportTest::StiffnessBoundary()
 {
     CheckDofNumbering();
     return SimpleAssembler(dofInfo).BuildMatrix(
             grpCellsMTBoundary, {dofRH, dofWV},
-            std::bind(&MoistureTransportBoundary<TDim, TDCw, TDCg, TWVEq>::Stiffness,
-                      mIntegrandMoistureTransportBoundary, _1, 0.));
+            std::bind(&MoistureTransportBoundary::Stiffness, &mIntegrandMoistureTransportBoundary, _1, 0.));
 }
 
-template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-DofVector<double> MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::CreateDofVector()
+DofVector<double> MoistureTransportTest::CreateDofVector()
 {
     DofVector<double> d;
 
@@ -218,17 +207,14 @@ DofVector<double> MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::CreateDo
     return d;
 }
 
-template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-void MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::GetDofVector(DofVector<double>& dofs, int instance)
+void MoistureTransportTest::GetDofVector(DofVector<double>& dofs, int instance)
 {
     CheckDofNumbering();
     NodalValueMerger Merger(&mMesh);
     Merger.Extract(&dofs, dofs.DofTypes(), instance);
 }
 
-template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-std::tuple<Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd>
-MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::ExtractDofs()
+std::tuple<Eigen::VectorXd, Eigen::VectorXd, Eigen::VectorXd> MoistureTransportTest::ExtractDofs()
 {
     DofVector<double> dg{CreateDofVector()}, vg{CreateDofVector()}, ag{CreateDofVector()};
     GetDofVector(dg);
@@ -238,17 +224,14 @@ MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::ExtractDofs()
                                                                          ToEigen(ag, GetDofs()));
 }
 
-template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-void MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::MergeDofVector(DofVector<double>& dofs, int instance)
+void MoistureTransportTest::MergeDofVector(DofVector<double>& dofs, int instance)
 {
     CheckDofNumbering();
     NodalValueMerger Merger(&mMesh);
     Merger.Merge(dofs, dofs.DofTypes(), instance);
 }
 
-template <int TDim, typename TDCw, typename TDCg, typename TMeC, typename TWVEq>
-void MoistureTransportTest<TDim, TDCw, TDCg, TMeC, TWVEq>::MergeDofs(Eigen::VectorXd d, Eigen::VectorXd v,
-                                                                     Eigen::VectorXd a)
+void MoistureTransportTest::MergeDofs(Eigen::VectorXd d, Eigen::VectorXd v, Eigen::VectorXd a)
 {
     DofVector<double> dg{CreateDofVector()}, vg{CreateDofVector()}, ag{CreateDofVector()};
     FromEigen(d, GetDofs(), &dg);
