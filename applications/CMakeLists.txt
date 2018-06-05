@@ -7,3 +7,16 @@ addNuToApp(ShrinkageAramis3d
     Tools
     )
 
+create_symlink("ARAMIS2d.msh")
+addNuToApp(GradientDamageAramis2d
+    structures/MultiPhysicsStructureNew.cpp
+    CustomIntegrands
+    Tools
+    )
+
+create_symlink("Cylinder.msh")
+addNuToApp(GradientDamageCylinder3d
+    structures/MultiPhysicsStructureNew.cpp
+    CustomIntegrands
+    Tools
+    )

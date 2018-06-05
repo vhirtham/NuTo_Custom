@@ -68,9 +68,9 @@ int main(int argc, char* argv[])
     const auto& groupSurfaceElementsFrontMatrixBoundary = meshGmsh.GetPhysicalGroup("frontmatrixboundary");
     const auto& groupSurfaceElementsBackMatrixBoundary = meshGmsh.GetPhysicalGroup("backmatrixboundary");
     const auto& groupSurfaceElementsTotalMatrixBoundary =
-            Unite(Unite(Unite(groupSurfaceElementsLeftMatrixBoundary, groupSurfaceElementsRightMatrixBoundary),
-                        Unite(groupSurfaceElementsTopMatrixBoundary, groupSurfaceElementsBottomMatrixBoundary)),
-                  Unite(groupSurfaceElementsFrontMatrixBoundary, groupSurfaceElementsBackMatrixBoundary));
+            Unite(groupSurfaceElementsLeftMatrixBoundary, groupSurfaceElementsRightMatrixBoundary,
+                  groupSurfaceElementsTopMatrixBoundary, groupSurfaceElementsBottomMatrixBoundary,
+                  groupSurfaceElementsFrontMatrixBoundary, groupSurfaceElementsBackMatrixBoundary);
     const auto& groupVolumeElementsMatrix = meshGmsh.GetPhysicalGroup("matrix");
     const auto& groupVolumeElementsGranite = meshGmsh.GetPhysicalGroup("granite");
     const auto& groupVolumeElementsTotal = Unite(groupVolumeElementsMatrix, groupVolumeElementsGranite);
@@ -82,13 +82,10 @@ int main(int argc, char* argv[])
     std::vector<DofType> dofs_MT{dofWaterVolumeFraction, dofRelativeHumidity};
 
     // Create interpolations
-    auto& interpolationTetrahedronLinear = mesh.CreateInterpolation(InterpolationTetrahedronLinear());
     auto& interpolationTetrahedronQuadratic = mesh.CreateInterpolation(InterpolationTetrahedronQuadratic());
-    auto& interpolationTriangleLinear = mesh.CreateInterpolation(InterpolationTriangleLinear());
     auto& interpolationTriangleQuadratic = mesh.CreateInterpolation(InterpolationTriangleQuadratic());
 
     // Create integrations
-    const auto& integrationTetrahedron1 = MPS.AddIntegrationType(IntegrationTypeTetrahedron(1));
     const auto& integrationTetrahedron5 = MPS.AddIntegrationType(IntegrationTypeTetrahedron(5));
     const auto& integrationTriangle5 = MPS.AddIntegrationType(IntegrationTypeTriangle(5));
 
