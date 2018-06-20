@@ -188,6 +188,8 @@ Volume (405) = {305};
 
 // Physical Groups -------------------------------------------------------
 
-
+Physical Surface("UpperFace") = {201, 202, 203, 204, 205};
+Physical Surface("LowerFace") = {211, 212, 213, 214, 215};
+Physical Surface("SideFace") = {221, 222, 223, 224};
 Physical Volume("Volume") = {401, 402, 403, 404, 405};
 

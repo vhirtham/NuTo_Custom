@@ -14,8 +14,16 @@ addNuToApp(GradientDamageAramis2d
     Tools
     )
 
+
 create_symlink("Cylinder.msh")
 addNuToApp(GradientDamageCylinder3d
+    structures/MultiPhysicsStructureNew.cpp
+    CustomIntegrands
+    Tools
+    )
+
+
+addNuToApp(MoistureDependentCylinderCompression3d
     structures/MultiPhysicsStructureNew.cpp
     CustomIntegrands
     Tools
