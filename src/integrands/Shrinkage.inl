@@ -10,11 +10,12 @@ namespace Integrands
 {
 
 template <int TDim>
-Shrinkage<TDim>::Shrinkage(DofType dofTypeDisp, DofType dofTypeWV, DofType dofTypeRH, double weightingFactor)
+Shrinkage<TDim>::Shrinkage(DofType dofTypeDisp, DofType dofTypeWV, DofType dofTypeRH, double weightingFactor, double stressScalingFactor)
     : mDofDisp{dofTypeDisp}
     , mDofWV{dofTypeWV}
     , mDofRH{dofTypeRH}
     , mWeightingFactor{weightingFactor}
+    ,mStressScalingFactor{stressScalingFactor}
 {
 }
 
@@ -30,7 +31,7 @@ Eigen::VectorXd Shrinkage<TDim>::Stress(const CellIpData& cellIpData, double del
     const Eigen::MatrixXd Ng = cellIpData.N(mDofRH);
     const double rh = (Ng * RH)[0];
 
-    return wv * CapillaryPressure(rh) * ComponentVector() * mWeightingFactor;
+    return wv * CapillaryPressure(rh) * ComponentVector() * mWeightingFactor * mStressScalingFactor;
 }
 
 template <int TDim>

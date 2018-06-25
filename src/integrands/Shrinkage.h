@@ -17,10 +17,12 @@ class Shrinkage
     DofType mDofRH;
 
     double mWeightingFactor = 0.0;
+    double mStressScalingFactor = 1.0;
 
 public:
     //! @brief ctor
-    inline Shrinkage(DofType dofTypeDisp, DofType dofTypeWV, DofType dofTypeRH, double weightingFactor);
+    inline Shrinkage(DofType dofTypeDisp, DofType dofTypeWV, DofType dofTypeRH, double weightingFactor,
+                     double stressScalingFactor = 1.0);
 
 
     inline Eigen::VectorXd Stress(const CellIpData& cellIpData, double deltaT) const;
