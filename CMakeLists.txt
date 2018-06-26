@@ -2,12 +2,18 @@ cmake_minimum_required(VERSION 3.7)
 project(NuToApps)
 set(CMAKE_VERBOSE_MAKEFILE OFF)
 
-enable_testing()
+option(ENABLE_TESTS true)
+
+if(ENABLE_TESTS)
+    enable_testing()
+endif()
 
 set(NUTO_APPS_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++14 -Wall -Wno-long-long -pedantic")
 
-FIND_PACKAGE(Boost REQUIRED unit_test_framework)
+if(ENABLE_TESTS)
+    FIND_PACKAGE(Boost REQUIRED unit_test_framework)
+endif()
 
 find_path(EIGEN_INCLUDE_DIR NAMES Eigen/Core PATH_SUFFIXES eigen3)
 include_directories(${EIGEN_INCLUDE_DIR})
@@ -34,5 +40,6 @@ include(IncludeScripts)
 
 add_subdirectory(applications)
 add_subdirectory(src)
-add_subdirectory(tests)
-
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()
