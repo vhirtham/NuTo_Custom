@@ -66,15 +66,24 @@ private:
     std::ofstream mFile;
 };
 
+struct CompressionTestSetup
+{
+    double envRelativeHumdity = 0.4;
+    double t_dry = 400.;
+    double shrinkageRatio = 0.5;
+    bool helpPrinted = false;
+    std::string resultFolder{"MDCCResults"};
+};
+
 double TimeDependentDisplacement(double t)
 {
     return -0.1 * t;
 }
 
 void SaveStressStrain(Group<CellInterface>& groupVolumeCellsTotal, GradientDamage<3, Shrinkage<3>>& integrandVolume,
-                      DofType dofDisplacements, double t)
+                      DofType dofDisplacements, double t, const CompressionTestSetup& setup)
 {
-    static OutputFile file("MDCCStressStrain.dat");
+    static OutputFile file(setup.resultFolder + "/MDCCStressStrain.dat");
     double V{0};
     Eigen::VectorXd Stress{Eigen::VectorXd::Zero(6)};
     for (CellInterface& cell : groupVolumeCellsTotal)
@@ -98,29 +107,27 @@ void SaveStressStrain(Group<CellInterface>& groupVolumeCellsTotal, GradientDamag
     std::cout << "Strain: " << AxialStrain << std::endl;
 }
 
-struct CompressionTestSetup
-{
-    double envRelativeHumdity = 0.4;
-    double t_dry = 400.;
-    double shrinkageRatio = 0.5;
-    bool helpPrinted = false;
-};
 
-void UpdateSetup(CompressionTestSetup& setup, std::string tag, double value)
+void UpdateSetup(CompressionTestSetup& setup, std::string tag, std::string value)
 {
+    if (tag.compare("RES") == 0)
+    {
+        setup.resultFolder = value;
+        return;
+    }
     if (tag.compare("RH") == 0)
     {
-        setup.envRelativeHumdity = value;
+        setup.envRelativeHumdity = std::stod(value);
         return;
     }
     if (tag.compare("TDRY") == 0)
     {
-        setup.t_dry = value;
+        setup.t_dry = std::stod(value);
         return;
     }
     if (tag.compare("SSC") == 0)
     {
-        setup.shrinkageRatio = value;
+        setup.shrinkageRatio = std::stod(value);
         return;
     }
     throw Exception(__PRETTY_FUNCTION__, "Unknown tag: \"" + tag + "\". Use -H for help.");
@@ -131,20 +138,20 @@ void PrintHelp()
 {
     std::cout << "Structure for input values: tag=val" << std::endl;
     std::cout << "Possible tags:" << std::endl;
+    std::cout << "  res   : result folder" << std::endl;
     std::cout << "  rh    : environmental relative humidity [0.0, 1.0]" << std::endl;
     std::cout << "  ssc   : Stress based shrinkage contribution [0.0, 1.0]" << std::endl;
     std::cout << "  tdry  : drying time [0.0, inf]" << std::endl;
 }
 
-std::string FormatInput(char* argv)
+std::string FormatString(std::string argument)
 {
-    std::string argument{argv};
     std::transform(argument.begin(), argument.end(), argument.begin(), ::toupper);
     return argument;
 }
 
 
-std::pair<std::string, double> GetTagAndValue(const std::string& argument)
+std::pair<std::string, std::string> GetTagAndValue(const std::string& argument)
 {
     size_t pos = argument.find_first_of('=', 0);
     if (pos == std::string::npos)
@@ -155,7 +162,7 @@ std::pair<std::string, double> GetTagAndValue(const std::string& argument)
     if (pos == argument.size() - 1)
         throw Exception(__PRETTY_FUNCTION__, "No argument value provided. Supported argument structure: tag=val");
 
-    return {argument.substr(0, pos), std::stod(argument.substr(pos + 1))};
+    return {FormatString(argument).substr(0, pos), argument.substr(pos + 1)};
 }
 
 void PrintSetup(const CompressionTestSetup& setup)
@@ -163,6 +170,7 @@ void PrintSetup(const CompressionTestSetup& setup)
     std::cout << "-------------" << std::endl;
     std::cout << "Program setup" << std::endl;
     std::cout << "-------------" << std::endl;
+    std::cout << "Result folder : " << setup.resultFolder << std::endl;
     std::cout << "Environmental relative humidity: " << setup.envRelativeHumdity << std::endl;
     std::cout << "Drying time: " << setup.t_dry << std::endl;
     std::cout << "Shrinkage ratio (stress based contribution): " << setup.shrinkageRatio << std::endl;
@@ -175,10 +183,10 @@ CompressionTestSetup SetupTestParameters(int argc, char* argv[])
 
     for (int i = 1; i < argc; ++i)
     {
-        std::string argument = FormatInput(argv[i]);
+        std::string argument{argv[i]};
 
-        if (argument.compare("HELP") == 0 || argument.compare("-HELP") == 0 || argument.compare("H") == 0 ||
-            argument.compare("-H") == 0)
+        if (FormatString(argument).compare("HELP") == 0 || FormatString(argument).compare("-HELP") == 0 ||
+            FormatString(argument).compare("H") == 0 || FormatString(argument).compare("-H") == 0)
         {
             PrintHelp();
             setup.helpPrinted = true;
@@ -345,7 +353,7 @@ int main(int argc, char* argv[])
 
     std::cout << "Setup visualization..." << std::endl;
 
-    PostProcess pp("MDCCResults");
+    PostProcess pp(setup.resultFolder);
     pp.DefineVisualizer("Volume", groupVolumeCellsTotal, AverageHandler());
     pp.Add("Volume", dofDisplacements);
     pp.Add("Volume", dofNonLocal);
@@ -369,7 +377,7 @@ int main(int argc, char* argv[])
 
     // Drying Process ----------------------------------------------------
 
-    SaveStressStrain(groupVolumeCellsTotal, integrandVolume, dofDisplacements, t);
+    SaveStressStrain(groupVolumeCellsTotal, integrandVolume, dofDisplacements, t, setup);
 
     double next_plot = setup.t_dry / 10;
     int num_converges = 0;
@@ -489,7 +497,7 @@ int main(int argc, char* argv[])
         d_MT = d_it;
         v_MT = v_it;
         a_MT = a_it;
-        SaveStressStrain(groupVolumeCellsTotal, integrandVolume, dofDisplacements, t);
+        SaveStressStrain(groupVolumeCellsTotal, integrandVolume, dofDisplacements, t, setup);
     }
 
 
@@ -579,6 +587,6 @@ int main(int argc, char* argv[])
             pp.Plot(t + setup.t_dry, false);
             next_plot += dt_ini;
         }
-        SaveStressStrain(groupVolumeCellsTotal, integrandVolume, dofDisplacements, t + setup.t_dry);
+        SaveStressStrain(groupVolumeCellsTotal, integrandVolume, dofDisplacements, t + setup.t_dry, setup);
     }
 }

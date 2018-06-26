@@ -1,6 +1,4 @@
 include(AddLib)
 include(AddNuToApp)
-if(ENABLE_TESTS)
-    include(AddNuToTest)
-endif()
+include(AddNuToTest)
 include(CreateSymlink)

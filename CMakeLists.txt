@@ -4,16 +4,12 @@ set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 option(ENABLE_TESTS true)
 
-if(ENABLE_TESTS)
-    enable_testing()
-endif()
+enable_testing()
 
 set(NUTO_APPS_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++14 -Wall -Wno-long-long -pedantic")
 
-if(ENABLE_TESTS)
-    FIND_PACKAGE(Boost REQUIRED unit_test_framework)
-endif()
+FIND_PACKAGE(Boost REQUIRED unit_test_framework)
 
 find_path(EIGEN_INCLUDE_DIR NAMES Eigen/Core PATH_SUFFIXES eigen3)
 include_directories(${EIGEN_INCLUDE_DIR})
@@ -40,6 +36,4 @@ include(IncludeScripts)
 
 add_subdirectory(applications)
 add_subdirectory(src)
-if(ENABLE_TESTS)
-    add_subdirectory(tests)
-endif()
+add_subdirectory(tests)
