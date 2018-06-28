@@ -71,7 +71,6 @@ struct CompressionTestSetup
     double envRelativeHumdity = 0.4;
     double t_dry = 400.;
     double shrinkageRatio = 0.5;
-    bool helpPrinted = false;
     std::string resultFolder{"MDCCResults"};
 };
 
@@ -83,7 +82,7 @@ double TimeDependentDisplacement(double t)
 void SaveStressStrain(Group<CellInterface>& groupVolumeCellsTotal, GradientDamage<3, Shrinkage<3>>& integrandVolume,
                       DofType dofDisplacements, double t, const CompressionTestSetup& setup)
 {
-    static OutputFile file(setup.resultFolder + "/MDCCStressStrain.dat");
+    static OutputFile file(setup.resultFolder + "/CylinderStressStrain.dat");
     double V{0};
     Eigen::VectorXd Stress{Eigen::VectorXd::Zero(6)};
     for (CellInterface& cell : groupVolumeCellsTotal)
@@ -142,6 +141,7 @@ void PrintHelp()
     std::cout << "  rh    : environmental relative humidity [0.0, 1.0]" << std::endl;
     std::cout << "  ssc   : Stress based shrinkage contribution [0.0, 1.0]" << std::endl;
     std::cout << "  tdry  : drying time [0.0, inf]" << std::endl;
+    exit(EXIT_SUCCESS);
 }
 
 std::string FormatString(std::string argument)
@@ -187,11 +187,8 @@ CompressionTestSetup SetupTestParameters(int argc, char* argv[])
 
         if (FormatString(argument).compare("HELP") == 0 || FormatString(argument).compare("-HELP") == 0 ||
             FormatString(argument).compare("H") == 0 || FormatString(argument).compare("-H") == 0)
-        {
             PrintHelp();
-            setup.helpPrinted = true;
-            return setup;
-        }
+
 
         auto tagValuePair = GetTagAndValue(argument);
 
@@ -206,8 +203,6 @@ int main(int argc, char* argv[])
 {
 
     CompressionTestSetup setup = SetupTestParameters(argc, argv);
-    if (setup.helpPrinted)
-        return 0.;
     PrintSetup(setup);
 
 
@@ -291,7 +286,7 @@ int main(int argc, char* argv[])
 
     auto material = Material::DefaultConcrete();
     material.c = 0.25;
-    material.gf *= 0.25;
+    material.gf *= 0.05;
     GradientDamage<3, Shrinkage<3>> integrandVolume{dofDisplacements, dofNonLocal, material, lawShrinkage};
     int nIp = integrationTetrahedron3.GetNumIntegrationPoints();
     integrandVolume.mKappas = Eigen::MatrixXd::Zero(groupVolumeCellsTotal.Size(), nIp);
@@ -320,7 +315,7 @@ int main(int argc, char* argv[])
     std::cout << "Setup time integration scheme..." << std::endl;
 
     double t = 0.;
-    double dt_ini = 0.05;
+    double dt_ini = 0.075;
     double dt = dt_ini;
 
 
@@ -379,7 +374,8 @@ int main(int argc, char* argv[])
 
     SaveStressStrain(groupVolumeCellsTotal, integrandVolume, dofDisplacements, t, setup);
 
-    double next_plot = setup.t_dry / 10;
+    double delta_plot = setup.t_dry / 10;
+    double next_plot = delta_plot;
     int num_converges = 0;
 
     std::cout << "Extract nodal values..." << std::endl;
@@ -492,7 +488,7 @@ int main(int argc, char* argv[])
         {
             std::cout << std::endl << "Visualize..." << std::endl << std::endl;
             pp.Plot(t, false);
-            next_plot += dt_ini;
+            next_plot += delta_plot;
         }
         d_MT = d_it;
         v_MT = v_it;
@@ -527,7 +523,7 @@ int main(int argc, char* argv[])
 
     t = 0;
     double t_compr = 40;
-    dt_ini = t_compr / 160;
+    dt_ini = t_compr / 400;
     dt = dt_ini;
 
     MPS.RenumberDofs();
