@@ -286,7 +286,7 @@ int main(int argc, char* argv[])
 
     auto material = Material::DefaultConcrete();
     material.c = 0.25;
-    material.gf *= 0.05;
+    material.gf *= 0.1;
     GradientDamage<3, Shrinkage<3>> integrandVolume{dofDisplacements, dofNonLocal, material, lawShrinkage};
     int nIp = integrationTetrahedron3.GetNumIntegrationPoints();
     integrandVolume.mKappas = Eigen::MatrixXd::Zero(groupVolumeCellsTotal.Size(), nIp);
