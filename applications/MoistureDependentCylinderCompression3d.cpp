@@ -315,8 +315,9 @@ int main(int argc, char* argv[])
     std::cout << "Setup time integration scheme..." << std::endl;
 
     double t = 0.;
-    double dt_ini = 0.075;
-    double dt = dt_ini;
+    double dt_max = 0.1;
+    double dt_min = dt_max * 1.e-6;
+    double dt = dt_max;
 
 
     // Newmark
@@ -463,7 +464,7 @@ int main(int argc, char* argv[])
             t -= dt;
             dt *= 0.5;
             num_converges = 0;
-            if (dt < dt_ini * 1e-6)
+            if (dt < dt_min)
                 throw e;
 
             MPS.MergeDofs(d_MT, {dofWaterVolumeFraction, dofRelativeHumidity}, 0);
@@ -523,8 +524,13 @@ int main(int argc, char* argv[])
 
     t = 0;
     double t_compr = 40;
-    dt_ini = t_compr / 400;
-    dt = dt_ini;
+    dt_max = t_compr / 40;
+    next_plot = dt_max;
+    delta_plot = dt_max / 10;
+    dt = dt_max;
+
+    double dt_max_current = dt_max;
+    bool timestepReduced = false;
 
     MPS.RenumberDofs();
 
@@ -532,7 +538,6 @@ int main(int argc, char* argv[])
     QSS.SetConstraints(constraintsCompression);
 
 
-    next_plot = dt_ini;
     num_converges = 0;
 
 
@@ -556,9 +561,9 @@ int main(int argc, char* argv[])
         {
             std::cout << "No convergence... reducing timestep" << std::endl;
             t -= dt;
-            dt *= 0.5;
+            dt *= 0.125;
             num_converges = 0;
-            if (dt < dt_ini * 1e-6)
+            if (dt < dt_min * 1e-6)
                 throw e;
 
             MPS.MergeDofs(d_MT, {dofWaterVolumeFraction, dofRelativeHumidity}, 0);
@@ -568,12 +573,19 @@ int main(int argc, char* argv[])
         }
 
         ++num_converges;
-        if (dt < dt_ini && num_converges > 5)
+        if (t + dt > 0.0125 * 300 && timestepReduced == false)
+        {
+            dt_max_current /= 10;
+            dt = dt_max_current;
+            num_converges = 0;
+            timestepReduced = true;
+        }
+        if (dt < dt_max_current && num_converges > 3)
         {
             std::cout << "Increasing timestep" << std::endl;
-            dt *= 1.5;
-            if (dt > dt_ini)
-                dt = dt_ini;
+            dt *= 2.;
+            if (dt > dt_max_current)
+                dt = dt_max_current;
             num_converges = 0;
         }
 
@@ -581,7 +593,7 @@ int main(int argc, char* argv[])
         {
             std::cout << std::endl << "Visualize..." << std::endl << std::endl;
             pp.Plot(t + setup.t_dry, false);
-            next_plot += dt_ini;
+            next_plot = (std::round(t / delta_plot) + 1) * delta_plot;
         }
         SaveStressStrain(groupVolumeCellsTotal, integrandVolume, dofDisplacements, t + setup.t_dry, setup);
     }
