@@ -69,8 +69,8 @@ private:
 struct CompressionTestSetup
 {
     double envRelativeHumdity = 0.4;
-    double t_dry = 400.;
-    double shrinkageRatio = 0.5;
+    double t_dry = 0.; // 400.;
+    double shrinkageRatio = 1.0;
     std::string resultFolder{"MDCCResults"};
 };
 
@@ -286,7 +286,7 @@ int main(int argc, char* argv[])
 
     auto material = Material::DefaultConcrete();
     material.c = 0.25;
-    material.gf *= 0.1;
+    material.gf *= 0.25;
     GradientDamage<3, Shrinkage<3>> integrandVolume{dofDisplacements, dofNonLocal, material, lawShrinkage};
     int nIp = integrationTetrahedron3.GetNumIntegrationPoints();
     integrandVolume.mKappas = Eigen::MatrixXd::Zero(groupVolumeCellsTotal.Size(), nIp);
@@ -500,27 +500,6 @@ int main(int argc, char* argv[])
 
     // Compression Test ----------------------------------------------
 
-    Constraints constraintsCompression;
-
-    auto groupNodesBottom = mesh.NodesAtAxis(eDirection::Z, dofDisplacements);
-    auto groupNodesTop = mesh.NodesAtAxis(eDirection::Z, dofDisplacements, 300);
-    for (NodeSimple& node : groupNodesBottom)
-    {
-        Eigen::VectorXd disp = node.GetValues(0);
-        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{1, 0., 0.}, disp[0]));
-        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{0., 1, 0.}, disp[1]));
-        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{0., 0., 1}, disp[2]));
-    }
-    for (NodeSimple& node : groupNodesTop)
-    {
-        Eigen::VectorXd disp = node.GetValues(0);
-        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{1, 0., 0.}, disp[0]));
-        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{0., 1, 0.}, disp[1]));
-        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{0., 0., 1}, [disp](double t) {
-                                       return disp[2] + TimeDependentDisplacement(t);
-                                   }));
-    }
-
 
     t = 0;
     double t_compr = 40;
@@ -531,6 +510,64 @@ int main(int argc, char* argv[])
 
     double dt_max_current = dt_max;
     bool timestepReduced = false;
+
+    double t_adjustBiforcation = dt_max * 3;
+    double adjustBiforcation = TimeDependentDisplacement(t_adjustBiforcation) * 0.1;
+
+
+    Constraints constraintsCompression;
+
+    std::cout << "Apply compression test constraints" << std::endl;
+
+    auto groupNodesBottom = mesh.NodesAtAxis(eDirection::Z, dofDisplacements);
+    auto groupNodesTop = mesh.NodesAtAxis(eDirection::Z, dofDisplacements, 300);
+    for (NodeSimple& node : groupNodesBottom)
+    {
+        Eigen::VectorXd disp = node.GetValues(0);
+        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{1, 0., 0.}, disp[0]));
+        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{0., 1, 0.}, disp[1]));
+        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{0., 0., 1}, disp[2]));
+    }
+    //    for (NodeSimple& node : groupNodesTop)
+    //    {
+    //        Eigen::VectorXd disp = node.GetValues(0);
+    //        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{1, 0., 0.}, disp[0]));
+    //        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{0., 1, 0.}, disp[1]));
+    //        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{0., 0., 1}, [disp](double t)
+    //        {
+    //                                       return disp[2] + TimeDependentDisplacement(t);
+    //                                   }));
+    //    }
+
+    std::set<NodeSimple*> handledNodes;
+    for (ElementCollectionFem& ec : groupVolumeElementsTotal)
+    {
+        ElementFem& coordE = ec.CoordinateElement();
+        ElementFem& dofE = ec.DofElement(dofDisplacements);
+        for (int i = 0; i < dofE.GetNumNodes(); ++i)
+        {
+            NodeSimple& dofNode = dofE.GetNode(i);
+            if (handledNodes.find(&dofNode) != handledNodes.end())
+                continue;
+            handledNodes.insert(&dofNode);
+            Eigen::VectorXd coords = Interpolate(coordE, dofE.Interpolation().GetLocalCoords(i));
+            if (coords[2] < 300 - 1e-4)
+                continue;
+            Eigen::VectorXd disp = dofNode.GetValues(0);
+            constraintsCompression.Add(dofDisplacements, Direction(dofNode, Eigen::Vector3d{1, 0., 0.}, disp[0]));
+            constraintsCompression.Add(dofDisplacements, Direction(dofNode, Eigen::Vector3d{0., 1, 0.}, disp[1]));
+            constraintsCompression.Add(dofDisplacements, Direction(dofNode, Eigen::Vector3d{0., 0., 1}, [=](double t) {
+                                           double dispConst = disp[2] + TimeDependentDisplacement(t);
+                                           if (t < t_adjustBiforcation)
+                                               dispConst += (coords[0] + 50) / 100 * t / t_adjustBiforcation *
+                                                            adjustBiforcation;
+                                           else
+                                               dispConst += (coords[0] + 50) / 100 * adjustBiforcation;
+                                           return dispConst;
+                                       }));
+        }
+    }
+
 
     MPS.RenumberDofs();
 
