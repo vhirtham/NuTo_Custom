@@ -285,8 +285,8 @@ int main(int argc, char* argv[])
                               0.000001);
 
     auto material = Material::DefaultConcrete();
-    material.c = 1.00;
-    material.gf *= 0.1;
+    material.c = 0.01;
+    material.gf = 0.02;
     GradientDamage<3, Shrinkage<3>> integrandVolume{dofDisplacements, dofNonLocal, material, lawShrinkage};
     int nIp = integrationTetrahedron3.GetNumIntegrationPoints();
     integrandVolume.mKappas = Eigen::MatrixXd::Zero(groupVolumeCellsTotal.Size(), nIp);
@@ -512,7 +512,7 @@ int main(int argc, char* argv[])
     bool timestepReduced = false;
 
     double t_adjustBiforcation = dt_max * 3;
-    double adjustBiforcation = TimeDependentDisplacement(t_adjustBiforcation) * 0.1;
+    double adjustBiforcation = TimeDependentDisplacement(t_adjustBiforcation) * 1.;
 
 
     Constraints constraintsCompression;
