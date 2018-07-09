@@ -285,8 +285,8 @@ int main(int argc, char* argv[])
                               0.000001);
 
     auto material = Material::DefaultConcrete();
-    material.c = 0.01;
-    material.gf = 0.02;
+    material.c = 100.;
+    material.gf = 0.002;
     GradientDamage<3, Shrinkage<3>> integrandVolume{dofDisplacements, dofNonLocal, material, lawShrinkage};
     int nIp = integrationTetrahedron3.GetNumIntegrationPoints();
     integrandVolume.mKappas = Eigen::MatrixXd::Zero(groupVolumeCellsTotal.Size(), nIp);
@@ -511,8 +511,8 @@ int main(int argc, char* argv[])
     double dt_max_current = dt_max;
     bool timestepReduced = false;
 
-    double t_adjustBiforcation = dt_max * 3;
-    double adjustBiforcation = TimeDependentDisplacement(t_adjustBiforcation) * 1.;
+    double t_adjustBifurcation = dt_max * 3;
+    double adjustBifurcation = TimeDependentDisplacement(t_adjustBifurcation) * 0.2;
 
 
     Constraints constraintsCompression;
@@ -521,13 +521,13 @@ int main(int argc, char* argv[])
 
     auto groupNodesBottom = mesh.NodesAtAxis(eDirection::Z, dofDisplacements);
     auto groupNodesTop = mesh.NodesAtAxis(eDirection::Z, dofDisplacements, 300);
-    for (NodeSimple& node : groupNodesBottom)
-    {
-        Eigen::VectorXd disp = node.GetValues(0);
-        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{1, 0., 0.}, disp[0]));
-        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{0., 1, 0.}, disp[1]));
-        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{0., 0., 1}, disp[2]));
-    }
+    //    for (NodeSimple& node : groupNodesBottom)
+    //    {
+    //        Eigen::VectorXd disp = node.GetValues(0);
+    //        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{1, 0., 0.}, disp[0]));
+    //        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{0., 1, 0.}, disp[1]));
+    //        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{0., 0., 1}, disp[2]));
+    //    }
     //    for (NodeSimple& node : groupNodesTop)
     //    {
     //        Eigen::VectorXd disp = node.GetValues(0);
@@ -551,20 +551,28 @@ int main(int argc, char* argv[])
                 continue;
             handledNodes.insert(&dofNode);
             Eigen::VectorXd coords = Interpolate(coordE, dofE.Interpolation().GetLocalCoords(i));
-            if (coords[2] < 300 - 1e-4)
+            if (coords[2] < 300 - 1e-4 && coords[2] > 0 + 1e-4)
                 continue;
             Eigen::VectorXd disp = dofNode.GetValues(0);
             constraintsCompression.Add(dofDisplacements, Direction(dofNode, Eigen::Vector3d{1, 0., 0.}, disp[0]));
             constraintsCompression.Add(dofDisplacements, Direction(dofNode, Eigen::Vector3d{0., 1, 0.}, disp[1]));
-            constraintsCompression.Add(dofDisplacements, Direction(dofNode, Eigen::Vector3d{0., 0., 1}, [=](double t) {
-                                           double dispConst = disp[2] + TimeDependentDisplacement(t);
-                                           if (t < t_adjustBiforcation)
-                                               dispConst += (coords[0] + 50) / 100 * t / t_adjustBiforcation *
-                                                            adjustBiforcation;
-                                           else
-                                               dispConst += (coords[0] + 50) / 100 * adjustBiforcation;
-                                           return dispConst;
-                                       }));
+            constraintsCompression.Add(
+                    dofDisplacements, Direction(dofNode, Eigen::Vector3d{0., 0., 1}, [=](double t) {
+
+                        double direction = 1.0;
+                        if (coords[2] < 100)
+                            direction = -1;
+                        double dispConst = disp[2] + TimeDependentDisplacement(t) * 0.5 * direction;
+                        double normalizedDistortion = ((coords[0] * direction + 50.) / 100. +
+                                                       (std::sin(coords[1] * direction / 50. * 3.14 / 2.) + 1.) / 2.) /
+                                                      2.0 * direction;
+                        if (t < t_adjustBifurcation)
+                            dispConst += normalizedDistortion * t / t_adjustBifurcation * adjustBifurcation;
+                        else
+                            dispConst += normalizedDistortion * adjustBifurcation;
+
+                        return dispConst;
+                    }));
         }
     }
 
