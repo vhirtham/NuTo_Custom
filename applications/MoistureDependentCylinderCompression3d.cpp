@@ -68,6 +68,8 @@ private:
 
 struct CompressionTestSetup
 {
+    double c = 25.;
+    double gf = 0.008;
     double envRelativeHumdity = 0.4;
     double t_dry = 0.; // 400.;
     double shrinkageRatio = 1.0;
@@ -82,7 +84,9 @@ double TimeDependentDisplacement(double t)
 void SaveStressStrain(Group<CellInterface>& groupVolumeCellsTotal, GradientDamage<3, Shrinkage<3>>& integrandVolume,
                       DofType dofDisplacements, double t, const CompressionTestSetup& setup)
 {
-    static OutputFile file(setup.resultFolder + "/CylinderStressStrain.dat");
+    static OutputFile file(setup.resultFolder + "/CylinderStressStrain_c" + std::to_string(setup.c) + "_gf" +
+                           std::to_string(setup.gf) + "_rh" + std::to_string(setup.envRelativeHumdity) + "_tdry" +
+                           std::to_string(setup.t_dry) + ".dat");
     double V{0};
     Eigen::VectorXd Stress{Eigen::VectorXd::Zero(6)};
     for (CellInterface& cell : groupVolumeCellsTotal)
@@ -109,6 +113,16 @@ void SaveStressStrain(Group<CellInterface>& groupVolumeCellsTotal, GradientDamag
 
 void UpdateSetup(CompressionTestSetup& setup, std::string tag, std::string value)
 {
+    if (tag.compare("C") == 0)
+    {
+        setup.c = std::stod(value);
+        return;
+    }
+    if (tag.compare("GF") == 0)
+    {
+        setup.gf = std::stod(value);
+        return;
+    }
     if (tag.compare("RES") == 0)
     {
         setup.resultFolder = value;
@@ -137,6 +151,8 @@ void PrintHelp()
 {
     std::cout << "Structure for input values: tag=val" << std::endl;
     std::cout << "Possible tags:" << std::endl;
+    std::cout << "  c     : damage law c parameter" << std::endl;
+    std::cout << "  gf    : damage law gf parameter" << std::endl;
     std::cout << "  res   : result folder" << std::endl;
     std::cout << "  rh    : environmental relative humidity [0.0, 1.0]" << std::endl;
     std::cout << "  ssc   : Stress based shrinkage contribution [0.0, 1.0]" << std::endl;
@@ -171,6 +187,8 @@ void PrintSetup(const CompressionTestSetup& setup)
     std::cout << "Program setup" << std::endl;
     std::cout << "-------------" << std::endl;
     std::cout << "Result folder : " << setup.resultFolder << std::endl;
+    std::cout << "Damage law c parameter : " << setup.c << std::endl;
+    std::cout << "Damage law gf parameter : " << setup.gf << std::endl;
     std::cout << "Environmental relative humidity: " << setup.envRelativeHumdity << std::endl;
     std::cout << "Drying time: " << setup.t_dry << std::endl;
     std::cout << "Shrinkage ratio (stress based contribution): " << setup.shrinkageRatio << std::endl;
@@ -285,8 +303,8 @@ int main(int argc, char* argv[])
                               0.000001);
 
     auto material = Material::DefaultConcrete();
-    material.c = 100.;
-    material.gf = 0.002;
+    material.c = setup.c;
+    material.gf = setup.gf;
     GradientDamage<3, Shrinkage<3>> integrandVolume{dofDisplacements, dofNonLocal, material, lawShrinkage};
     int nIp = integrationTetrahedron3.GetNumIntegrationPoints();
     integrandVolume.mKappas = Eigen::MatrixXd::Zero(groupVolumeCellsTotal.Size(), nIp);
