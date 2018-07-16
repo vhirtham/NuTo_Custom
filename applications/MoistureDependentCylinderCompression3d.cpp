@@ -69,9 +69,11 @@ private:
 struct CompressionTestSetup
 {
     double c = 25.;
-    double gf = 0.008;
+    double gf = 0.0045;
+    double initialRH = 0.4;
+    double equilibriumWV = 0.18;
     double envRelativeHumdity = 0.4;
-    double t_dry = 0.; // 400.;
+    double t_dry = 0.1; // 400.;
     double shrinkageRatio = 1.0;
     std::string resultFolder{"MDCCResults"};
 };
@@ -82,32 +84,43 @@ double TimeDependentDisplacement(double t)
 }
 
 void SaveStressStrain(Group<CellInterface>& groupVolumeCellsTotal, GradientDamage<3, Shrinkage<3>>& integrandVolume,
-                      DofType dofDisplacements, double t, const CompressionTestSetup& setup)
+                      DofType dofDisplacements, double t, const CompressionTestSetup& setup, bool isDrying)
 {
     static OutputFile file(setup.resultFolder + "/CylinderStressStrain_c" + std::to_string(setup.c) + "_gf" +
                            std::to_string(setup.gf) + "_rh" + std::to_string(setup.envRelativeHumdity) + "_tdry" +
                            std::to_string(setup.t_dry) + ".dat");
+
+    static double axialStressFromDrying;
+
     double V{0};
     Eigen::VectorXd Stress{Eigen::VectorXd::Zero(6)};
     for (CellInterface& cell : groupVolumeCellsTotal)
     {
         V += cell.Integrate([&](const CellIpData& cipd) { return 1.0; });
-        auto test = cell.Integrate([&](const CellIpData& cipd) {
+        auto cellStressIntegral = cell.Integrate([&](const CellIpData& cipd) {
             DofVector<double> d;
-            d[dofDisplacements] = integrandVolume.mLinearElasticDamage.Stress(
-                    cipd.Apply(dofDisplacements, Nabla::Strain()),
-                    integrandVolume.mDamageLaw.Damage(integrandVolume.Kappa(cipd)));
+            //            d[dofDisplacements] = integrandVolume.mLinearElasticDamage.Stress(
+            //                    cipd.Apply(dofDisplacements, Nabla::Strain()),
+            //                    integrandVolume.mDamageLaw.Damage(integrandVolume.Kappa(cipd)));
+            d[dofDisplacements] = integrandVolume.StressMechanics(cipd);
             return d;
         });
-        Stress += test[dofDisplacements];
+        Stress += cellStressIntegral[dofDisplacements];
     }
     double AxialStress{Stress[2] / V};
     double AxialStrain{TimeDependentDisplacement(t) / 300};
 
-    file.Write(AxialStress, ", ", AxialStrain, "\n");
+    if (isDrying)
+    {
+        AxialStrain = 0.;
+        axialStressFromDrying = AxialStress;
+    }
 
-    std::cout << "Stress: " << AxialStress << std::endl;
-    std::cout << "Strain: " << AxialStrain << std::endl;
+    file.Write(AxialStrain, ", ", AxialStress - axialStressFromDrying, ", ", AxialStress, "\n");
+
+    std::cout << "Stress (total): " << AxialStress << std::endl;
+    std::cout << "Stress (external): " << AxialStress - axialStressFromDrying << std::endl;
+    std::cout << "Strain (external): " << AxialStrain << std::endl;
 }
 
 
@@ -128,9 +141,14 @@ void UpdateSetup(CompressionTestSetup& setup, std::string tag, std::string value
         setup.resultFolder = value;
         return;
     }
-    if (tag.compare("RH") == 0)
+    if (tag.compare("RHENV") == 0)
     {
         setup.envRelativeHumdity = std::stod(value);
+        return;
+    }
+    if (tag.compare("RHINI") == 0)
+    {
+        setup.initialRH = std::stod(value);
         return;
     }
     if (tag.compare("TDRY") == 0)
@@ -141,6 +159,11 @@ void UpdateSetup(CompressionTestSetup& setup, std::string tag, std::string value
     if (tag.compare("SSC") == 0)
     {
         setup.shrinkageRatio = std::stod(value);
+        return;
+    }
+    if (tag.compare("WVEQ") == 0)
+    {
+        setup.equilibriumWV = std::stod(value);
         return;
     }
     throw Exception(__PRETTY_FUNCTION__, "Unknown tag: \"" + tag + "\". Use -H for help.");
@@ -154,9 +177,11 @@ void PrintHelp()
     std::cout << "  c     : damage law c parameter" << std::endl;
     std::cout << "  gf    : damage law gf parameter" << std::endl;
     std::cout << "  res   : result folder" << std::endl;
-    std::cout << "  rh    : environmental relative humidity [0.0, 1.0]" << std::endl;
+    std::cout << "  rhenv : environmental relative humidity [0.0, 1.0]" << std::endl;
+    std::cout << "  rhini : initial relative humidity [0.0, 1.0]" << std::endl;
     std::cout << "  ssc   : Stress based shrinkage contribution [0.0, 1.0]" << std::endl;
     std::cout << "  tdry  : drying time [0.0, inf]" << std::endl;
+    std::cout << "  wveq  : equilibrium water volume fraction at 100% relative humidity [0.0, inf]" << std::endl;
     exit(EXIT_SUCCESS);
 }
 
@@ -190,8 +215,10 @@ void PrintSetup(const CompressionTestSetup& setup)
     std::cout << "Damage law c parameter : " << setup.c << std::endl;
     std::cout << "Damage law gf parameter : " << setup.gf << std::endl;
     std::cout << "Environmental relative humidity: " << setup.envRelativeHumdity << std::endl;
+    std::cout << "Initial relative humidity: " << setup.initialRH << std::endl;
     std::cout << "Drying time: " << setup.t_dry << std::endl;
     std::cout << "Shrinkage ratio (stress based contribution): " << setup.shrinkageRatio << std::endl;
+    std::cout << "Equilibrium water volume fraction at 100% relative humidity: " << setup.equilibriumWV << std::endl;
     std::cout << std::endl << std::endl;
 }
 
@@ -266,13 +293,6 @@ int main(int argc, char* argv[])
     // Set time derivatives
     MPS.SetNumTimeDerivatives(2);
 
-    // Set nodal values ---------------------------------------------------------------------------
-
-    std::cout << "Set nodal values..." << std::endl;
-
-    MPS.SetNodalValues(dofRelativeHumidity, {1.0});
-    MPS.SetNodalValues(dofWaterVolumeFraction, {0.1});
-    std::cout << "Nodal values set..." << std::endl;
 
     // Create cells -------------------------------------------------------------------------------
 
@@ -286,16 +306,21 @@ int main(int argc, char* argv[])
     std::cout << "Create integrants..." << std::endl;
 
 
+    //    auto diffusionWV = MTCoefficientLinear{0., -10., 0., 0., 11.};
+    auto diffusionWV = MTCoefficientQuadratic{{{0., 0.}}, {{-10., 0.}}, {{0., 0.}}, {{0., 0.}}, 10.1};
+    auto diffusionRH = MTCoefficientConstant{0.};
+    auto massExchange = MTCoefficientConstant{10.};
+    auto sorptionIso = MTCoefficientLinear{0.0, setup.equilibriumWV, 0., 0., 0.};
+
     auto& integrandMoistureTransport = MPS.AddIntegrand(IntegrandWrapper<MoistureTransport, double>{
-            MoistureTransport{dofWaterVolumeFraction, dofRelativeHumidity, MTCoefficientConstant{1.},
-                              MTCoefficientConstant{0.01}, MTCoefficientConstant{0.}, MTCoefficientConstant{0.1}, 1.,
-                              0.1, 0.2},
+            MoistureTransport{dofWaterVolumeFraction, dofRelativeHumidity, diffusionWV, diffusionRH, massExchange,
+                              sorptionIso, 1., 0.1, 0.2},
             &MoistureTransport::Gradient, &MoistureTransport::Stiffness, &MoistureTransport::Damping});
 
 
     auto& integrandMoistureTransportBoundary = MPS.AddIntegrand(IntegrandWrapper<MoistureTransportBoundary, double>{
             MoistureTransportBoundary{integrandMoistureTransport.GetIntegrand(), dofWaterVolumeFraction,
-                                      dofRelativeHumidity, 2., 2., setup.envRelativeHumdity},
+                                      dofRelativeHumidity, 8., 0., setup.envRelativeHumdity},
             &MoistureTransportBoundary::Gradient, &MoistureTransportBoundary::Stiffness});
 
 
@@ -309,6 +334,14 @@ int main(int argc, char* argv[])
     int nIp = integrationTetrahedron3.GetNumIntegrationPoints();
     integrandVolume.mKappas = Eigen::MatrixXd::Zero(groupVolumeCellsTotal.Size(), nIp);
 
+
+    // Set nodal values ---------------------------------------------------------------------------
+
+    std::cout << "Set nodal values..." << std::endl;
+
+    MPS.SetNodalValues(dofRelativeHumidity, {setup.initialRH});
+    MPS.SetNodalValues(dofWaterVolumeFraction, {sorptionIso.value(0., setup.initialRH, 0., 0.)});
+    std::cout << "Nodal values set..." << std::endl;
 
     // Define constraints -------------------------------------------------------------------------
 
@@ -391,7 +424,7 @@ int main(int argc, char* argv[])
 
     // Drying Process ----------------------------------------------------
 
-    SaveStressStrain(groupVolumeCellsTotal, integrandVolume, dofDisplacements, t, setup);
+    SaveStressStrain(groupVolumeCellsTotal, integrandVolume, dofDisplacements, t, setup, true);
 
     double delta_plot = setup.t_dry / 10;
     double next_plot = delta_plot;
@@ -491,13 +524,21 @@ int main(int argc, char* argv[])
             continue;
         }
 
+        if (std::abs(1. - t) <= 1.e-6)
+            dt_max = dt = 1.;
+        if (std::abs(2. - t) <= 1.e-6)
+            dt_max = dt = 2.;
+        if (std::abs(10. - t) <= 1.e-6)
+            dt_max = dt = 5.;
+
+
         ++num_converges;
-        if (dt < setup.t_dry / 20 && num_converges > 3)
+        if (dt < dt_max && num_converges > 3)
         {
             std::cout << "Increasing timestep" << std::endl;
-            dt *= 1.5;
-            if (dt > setup.t_dry / 20)
-                dt = setup.t_dry / 20;
+            dt *= 2.0;
+            if (dt > dt_max)
+                dt = dt_max;
             if (t + dt > setup.t_dry)
                 dt = setup.t_dry - t;
             num_converges = 0;
@@ -512,7 +553,7 @@ int main(int argc, char* argv[])
         d_MT = d_it;
         v_MT = v_it;
         a_MT = a_it;
-        SaveStressStrain(groupVolumeCellsTotal, integrandVolume, dofDisplacements, t, setup);
+        SaveStressStrain(groupVolumeCellsTotal, integrandVolume, dofDisplacements, t, setup, true);
     }
 
 
@@ -535,27 +576,10 @@ int main(int argc, char* argv[])
 
     Constraints constraintsCompression;
 
-    std::cout << "Apply compression test constraints" << std::endl;
+    std::cout << "Apply compression test constraints" << std::endl << std::endl;
 
     auto groupNodesBottom = mesh.NodesAtAxis(eDirection::Z, dofDisplacements);
     auto groupNodesTop = mesh.NodesAtAxis(eDirection::Z, dofDisplacements, 300);
-    //    for (NodeSimple& node : groupNodesBottom)
-    //    {
-    //        Eigen::VectorXd disp = node.GetValues(0);
-    //        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{1, 0., 0.}, disp[0]));
-    //        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{0., 1, 0.}, disp[1]));
-    //        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{0., 0., 1}, disp[2]));
-    //    }
-    //    for (NodeSimple& node : groupNodesTop)
-    //    {
-    //        Eigen::VectorXd disp = node.GetValues(0);
-    //        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{1, 0., 0.}, disp[0]));
-    //        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{0., 1, 0.}, disp[1]));
-    //        constraintsCompression.Add(dofDisplacements, Direction(node, Eigen::Vector3d{0., 0., 1}, [disp](double t)
-    //        {
-    //                                       return disp[2] + TimeDependentDisplacement(t);
-    //                                   }));
-    //    }
 
     std::set<NodeSimple*> handledNodes;
     for (ElementCollectionFem& ec : groupVolumeElementsTotal)
@@ -574,23 +598,25 @@ int main(int argc, char* argv[])
             Eigen::VectorXd disp = dofNode.GetValues(0);
             constraintsCompression.Add(dofDisplacements, Direction(dofNode, Eigen::Vector3d{1, 0., 0.}, disp[0]));
             constraintsCompression.Add(dofDisplacements, Direction(dofNode, Eigen::Vector3d{0., 1, 0.}, disp[1]));
-            constraintsCompression.Add(
-                    dofDisplacements, Direction(dofNode, Eigen::Vector3d{0., 0., 1}, [=](double t) {
+            constraintsCompression.Add(dofDisplacements, Direction(dofNode, Eigen::Vector3d{0., 0., 1}, [=](double t) {
 
-                        double direction = 1.0;
-                        if (coords[2] < 100)
-                            direction = -1;
-                        double dispConst = disp[2] + TimeDependentDisplacement(t) * 0.5 * direction;
-                        double normalizedDistortion = ((coords[0] * direction + 50.) / 100. +
-                                                       (std::sin(coords[1] * direction / 50. * 3.14 / 2.) + 1.) / 2.) /
-                                                      2.0 * direction;
-                        if (t < t_adjustBifurcation)
-                            dispConst += normalizedDistortion * t / t_adjustBifurcation * adjustBifurcation;
-                        else
-                            dispConst += normalizedDistortion * adjustBifurcation;
+                                           double direction = 1.0;
+                                           if (coords[2] < 100)
+                                               direction = -1;
+                                           double dispConst = disp[2] + TimeDependentDisplacement(t) * 0.5 * direction;
+                                           double normalizedDistortion =
+                                                   ((coords[0] * direction + 50.) / 100.
+                                                    // + (std::sin(coords[1] * direction / 50. * 3.14 / 2.) + 1.) / 2.
+                                                    ) /
+                                                   2.0 * direction;
+                                           if (t < t_adjustBifurcation)
+                                               dispConst += normalizedDistortion * t / t_adjustBifurcation *
+                                                            adjustBifurcation;
+                                           else
+                                               dispConst += normalizedDistortion * adjustBifurcation;
 
-                        return dispConst;
-                    }));
+                                           return dispConst;
+                                       }));
         }
     }
 
@@ -603,6 +629,9 @@ int main(int argc, char* argv[])
 
     num_converges = 0;
 
+
+    std::cout << "Start compression test" << std::endl;
+    std::cout << "----------------------" << std::endl << std::endl;
 
     std::cout << "Start time integration scheme..." << std::endl;
     while (t < t_compr)
@@ -658,6 +687,6 @@ int main(int argc, char* argv[])
             pp.Plot(t + setup.t_dry, false);
             next_plot = (std::round(t / delta_plot) + 1) * delta_plot;
         }
-        SaveStressStrain(groupVolumeCellsTotal, integrandVolume, dofDisplacements, t + setup.t_dry, setup);
+        SaveStressStrain(groupVolumeCellsTotal, integrandVolume, dofDisplacements, t + setup.t_dry, setup, false);
     }
 }

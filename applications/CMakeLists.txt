@@ -28,3 +28,9 @@ addNuToApp(MoistureDependentCylinderCompression3d
     CustomIntegrands
     Tools
     )
+
+addNuToApp(MoistureTransportCylinder3d
+    structures/MultiPhysicsStructureNew.cpp
+    CustomIntegrands
+    Tools
+    )

@@ -104,50 +104,61 @@ public:
 };
 
 
-template <int TC1WV, int TC1RH, int TC1WV_dt, int TC1RH_dt, int TC0, int TDiv = 1>
-class MTCLinear
+class MTCoefficientQuadratic : public MTCoefficientInterface
 {
-    constexpr static double mC0 = static_cast<double>(TC0) / static_cast<double>(TDiv);
-    constexpr static double mC1WV = static_cast<double>(TC1WV) / static_cast<double>(TDiv);
-    constexpr static double mC1RH = static_cast<double>(TC1RH) / static_cast<double>(TDiv);
-    constexpr static double mC1WV_dt = static_cast<double>(TC1WV_dt) / static_cast<double>(TDiv);
-    constexpr static double mC1RH_dt = static_cast<double>(TC1RH_dt) / static_cast<double>(TDiv);
+    std::array<double, 2> mC1WV, mC1RH, mC1WV_dt, mC1RH_dt;
+    double mC0;
 
 public:
-    constexpr static double value(double WV, double RH, double WV_dt, double RH_dt)
+    MTCoefficientQuadratic(std::array<double, 2> c1WV, std::array<double, 2> c1RH, std::array<double, 2> c1WV_dt,
+                           std::array<double, 2> c1RH_dt, double c0)
+        : mC1WV{c1WV}
+        , mC1RH{c1RH}
+        , mC1WV_dt{c1WV_dt}
+        , mC1RH_dt{c1RH_dt}
+        , mC0{c0}
     {
-        return mC1WV * WV + mC1RH * RH + mC1WV_dt * WV_dt + mC1RH_dt * RH_dt + mC0;
     }
-    constexpr static double d_WaterVolumeFraction(double WV, double RH, double WV_dt, double RH_dt)
+
+    virtual std::unique_ptr<MTCoefficientInterface> Clone() const final
     {
-        return mC1WV;
+        return std::make_unique<MTCoefficientQuadratic>(*this);
     }
-    constexpr static double d_RelativeHumidity(double WV, double RH, double WV_dt, double RH_dt)
+
+    virtual double value(double WV, double RH, double WV_dt, double RH_dt) const final
     {
-        return mC1RH;
+        return dofValue(mC1WV, WV) + dofValue(mC1RH, RH) + dofValue(mC1WV_dt, WV_dt) + dofValue(mC1RH_dt, RH_dt) + mC0;
     }
-    constexpr static double d_WaterVolumeFraction_dt(double WV, double RH, double WV_dt, double RH_dt)
+
+    virtual double d_WaterVolumeFraction(double WV, double RH, double WV_dt, double RH_dt) const final
     {
-        return mC1WV_dt;
+        return dofGradient(mC1WV, WV);
     }
-    constexpr static double d_RelativeHumidity_dt(double WV, double RH, double WV_dt, double RH_dt)
+
+    virtual double d_RelativeHumidity(double WV, double RH, double WV_dt, double RH_dt) const final
     {
-        return mC1RH_dt;
+        return dofGradient(mC1RH, RH);
+    }
+
+    virtual double d_WaterVolumeFraction_dt(double WV, double RH, double WV_dt, double RH_dt) const final
+    {
+        return dofGradient(mC1WV_dt, WV_dt);
+    }
+
+    virtual double d_RelativeHumidity_dt(double WV, double RH, double WV_dt, double RH_dt) const final
+    {
+        return dofGradient(mC1RH_dt, RH_dt);
+    }
+
+private:
+    inline double dofValue(std::array<double, 2> Coeffs, double dof) const
+    {
+        return Coeffs[1] * dof * dof + Coeffs[0] * dof;
+    }
+
+    inline double dofGradient(std::array<double, 2> Coeffs, double dof) const
+    {
+        return 2 * Coeffs[1] * dof + Coeffs[0];
     }
 };
-
-// Linear functions depending on only one dof
-template <int TC1, int TC0, int TDiv = 1>
-using MTCLinearWV = MTCLinear<TC1, 0, 0, 0, TC0, TDiv>;
-template <int TC1, int TC0, int TDiv = 1>
-using MTCLinearRH = MTCLinear<0, TC1, 0, 0, TC0, TDiv>;
-template <int TC1, int TC0, int TDiv = 1>
-using MTCLinearWV_dt = MTCLinear<0, 0, TC1, 0, TC0, TDiv>;
-template <int TC1, int TC0, int TDiv = 1>
-using MTCLinearRH_dt = MTCLinear<0, 0, 0, TC1, TC0, TDiv>;
-
-// Constant functions
-template <int TC0, int TDiv = 1>
-using MTCConst = MTCLinear<0, 0, 0, 0, TC0, TDiv>;
-using MTCZero = MTCLinear<0, 0, 0, 0, 0, 0>;
 }
