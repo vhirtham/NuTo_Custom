@@ -34,3 +34,5 @@ addNuToApp(MoistureTransportCylinder3d
     CustomIntegrands
     Tools
     )
+
+addNuToApp(RandomTests)

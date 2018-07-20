@@ -70,10 +70,10 @@ struct CompressionTestSetup
 {
     double c = 25.;
     double gf = 0.0045;
-    double initialRH = 0.4;
+    double initialRH = 1.0;
     double equilibriumWV = 0.18;
-    double envRelativeHumdity = 0.4;
-    double t_dry = 0.1; // 400.;
+    double envRelativeHumdity = 1.0;
+    double t_dry = 0.;
     double shrinkageRatio = 1.0;
     std::string resultFolder{"MDCCResults"};
 };
@@ -415,12 +415,19 @@ int main(int argc, char* argv[])
     pp.Add("Volume", [&](const CellIpData& cipd) { return integrandVolume.Strain(cipd); }, "Strain");
     pp.Add("Volume", [&](const CellIpData& cipd) { return integrandVolume.StrainMechanics(cipd); }, "StrainMechanics");
     pp.Add("Volume", [&](const CellIpData& cipd) { return integrandVolume.StrainAdditive(cipd); }, "StrainShrinkage");
-    std::cout << "Visualize first timestep..." << std::endl;
-    pp.Plot(t, false);
 
 
     // Solve --------------------------------------------------------------------------------------
 
+
+    if (setup.initialRH < 1.0 && setup.t_dry <= 0.)
+    {
+        std::cout << "Initial relative humidity is smaller than 1. Calculating mechanical equilibirum" << std::endl;
+        QSS.DoStep(0, "MumpsLU");
+    }
+
+    std::cout << "Visualize first timestep..." << std::endl;
+    pp.Plot(t, false);
 
     // Drying Process ----------------------------------------------------
 
@@ -687,6 +694,6 @@ int main(int argc, char* argv[])
             pp.Plot(t + setup.t_dry, false);
             next_plot = (std::round(t / delta_plot) + 1) * delta_plot;
         }
-        SaveStressStrain(groupVolumeCellsTotal, integrandVolume, dofDisplacements, t + setup.t_dry, setup, false);
+        SaveStressStrain(groupVolumeCellsTotal, integrandVolume, dofDisplacements, t, setup, false);
     }
 }
